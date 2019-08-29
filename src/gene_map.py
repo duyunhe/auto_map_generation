@@ -1,14 +1,28 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2019/8/27 11:08
 # @Author  : yhdu@tongwoo.cn
-# @简介    : 写的是什么玩意
+# @简介    : 写的什么玩意
 # @File    : gene_map.py
 
 
 from collections import defaultdict
-from common import xy_angle, mean_route_angle, rotate, mean_y_filter, mean_delta
+from common import mean_route_angle, rotate, mean_y_filter, mean_delta, mean_angle, near_angle, debug_time
 import numpy as np
-from draw import draw_center, draw_points
+from draw import draw_center, draw_points, draw_line
+
+
+class Line(object):
+    def __init__(self, line):
+        """
+        :param line: list of Point 
+        """
+        x_list, y_list = zip(*line)
+        self.first_x = min(x_list)
+        self.last_x = max(x_list)
+        self.line = line
+
+    def __lt__(self, other):
+        return self.first_x < other.first_x
 
 
 def refine_road(pt_list, cnt_list):
@@ -38,12 +52,60 @@ def refine_road(pt_list, cnt_list):
     return ref_list
 
 
-def draw_pt(labels, data_list, rev_index):
+def collect_line_around(pt_list, trace_list, rev, rot):
+    """
+    MOST important to road segment generation
+    trace_list[ti][tj] is pt
+    collect all the points from beginning to end as trace goes on if the point is anchor
+    because the vehicle may turn around and trace back, the trace should be split when turning happened
+    :param pt_list: list of anchor point
+    :param trace_list: original trace list
+    :param rev: each index
+    :param rot: rotate angle
+    :return: list of line(list of Point)
+    """
+    begin, end = {}, {}
+    for i, pt in enumerate(pt_list):
+        ti, tj = rev[i][:]
+        try:
+            begin[ti] = min(begin[ti], tj - 1)
+        except KeyError:
+            begin[ti] = tj
+        try:
+            end[ti] = max(end[ti], tj + 1)
+        except KeyError:
+            end[ti] = tj
+
+    line_list = []
+    fact_ort = 90 - rot
+    for i, j in begin.items():
+        bj = max(0, begin[i])
+        ej = min(end[i], len(trace_list[i]) - 1)
+        line = []
+        j = bj
+        while j < ej + 1:
+            data = trace_list[i][j]
+            if near_angle(data.ort, fact_ort, 30):
+                line.append([data.x, data.y])
+            else:
+                if len(line) > 1:
+                    line_list.append(rotate(line, rot))
+                line = []
+            j = j + 1
+        if len(line) > 1:
+            line_list.append(rotate(line, rot))
+
+    return line_list
+
+
+@debug_time
+def gene_center_line(labels, data_list, rev_index, trace_list):
     n = len(labels)
     x_list, y_list, angle_list = zip(*data_list)
     pts_dict = defaultdict(list)
     angle_dict = defaultdict(list)
     rev_dict = defaultdict(list)
+
     for i in range(n):
         pts_dict[labels[i]].append([x_list[i], y_list[i]])
         angle_dict[labels[i]].append(angle_list[i])
@@ -57,51 +119,32 @@ def draw_pt(labels, data_list, rev_index):
             # draw_points(pt_list, '+', 'k', 0.1, -3)
             pass
         else:
+            # if label != 13:
+            #     continue
             angle_list = angle_dict[label]
-            # a = mean_angle(angle_list)
-            a = mean_route_angle(pt_list, rev)
+            a = mean_angle(angle_list)
             try:
+                # print a
                 idx = int(a / 45)
             except ValueError:
                 continue
             # print a
             if len(pt_list) > 50:
                 a = 90 - a
+                line_list = collect_line_around(pt_list, trace_list, rev, a)
                 pt_list = rotate(pt_list, a)
                 org_list = rotate(pt_list, -a)
-                # ma = mean_route_angle(pt_list, rev)
-                # pt_list = rotate(pt_list, -a)
-                draw_points(org_list, 'o', colors[idx], .2, label)
+                draw_points(org_list, 'o', colors[idx], .1, label)
+                # draw_points(pt_list, 'o', colors[idx], .1, label)
                 try:
-                    road = gene_road(pt_list, rev)
+                    road = center_road(pt_list, line_list)
                     road = rotate(road, -a)
                     draw_center(road)
                 except ValueError:
                     print label, "ValueError"
 
 
-def gene_road(pt_list, rev_index):
-    line_dict = defaultdict(list)
-    for i, rev in enumerate(rev_index):
-        ti, tj = rev[:]
-        line_dict[ti].append(pt_list[i])
-    # for lid, line in line_dict.items():
-    #     if len(line) > 1:
-    #         draw_line(line)
-    road = center_road(pt_list, line_dict)
-    return road
-
-
-def center_road(pt_list, line_dict):
-    class Line(object):
-        def __init__(self, l):
-            x_list, y_list = zip(*l)
-            self.first_x = min(x_list)
-            self.last_x = max(x_list)
-            self.line = l
-
-        def __lt__(self, other):
-            return self.first_x < other.first_x
+def center_road(pt_list, line_list):
 
     def calc_y(pt0, pt1, x0):
         ax = pt1[0] - pt0[0]
@@ -111,47 +154,45 @@ def center_road(pt_list, line_dict):
         ay = pt1[1] - pt0[1]
         return dx / ax * ay + pt0[1]
 
-    x_list = []
-    ln_list = []
-    # single_list = []
-    for lid, line in line_dict.items():
-        for pt in line:
-            x_list.append(pt[0])
-        # if len(line) == 1:
-        #     single_list.append(line[0])
-        if len(line) > 1:
-            ln = Line(line)
-            ln_list.append(ln)
+    x_list = [pt[0] for pt in pt_list]
+    ln_list = [Line(line) for line in line_list if len(line) > 1]
+    # for line in line_list:
+    #     if len(line) > 1:
+    #         draw_line(line)
     x_list.sort()
-    ln_list.sort()
 
     # begin scan
     # from left to right
     gene_list = []
     cnt_list = []
+    # not all points will affect the center point
+    # avoid error on curve
+    AFFECT_DIST = 30
+    # need MIN_SEG segments to get the mean value, in order to avoid sample insufficiency
+    MIN_SEG = 10
+    # BRUTE FORCE..
     for x in x_list:
         y_list = []
-        # for pt in single_list:
-        #     if pt[0] == x:
-        #         y_list.append(pt[1])
         for ln in ln_list:
             if ln.first_x <= x <= ln.last_x:
                 for i in range(len(ln.line) - 1):
                     if ln.line[i][0] <= x <= ln.line[i + 1][0]:
-                        y = calc_y(ln.line[i], ln.line[i + 1], x)
-                        y_list.append(y)
-                        break
+                        if x <= ln.line[i][0] + AFFECT_DIST or x >= ln.line[i + 1][0] - AFFECT_DIST:
+                            y = calc_y(ln.line[i], ln.line[i + 1], x)
+                            y_list.append(y)
+                            break
                     if ln.line[i + 1][0] <= x <= ln.line[i][0]:
-                        y = calc_y(ln.line[i], ln.line[i + 1], x)
-                        y_list.append(y)
-                        break
-        if len(y_list) != 0:
+                        if x <= ln.line[i + 1][0] + AFFECT_DIST or x >= ln.line[i][0] - AFFECT_DIST:
+                            y = calc_y(ln.line[i], ln.line[i + 1], x)
+                            y_list.append(y)
+                            break
+        if len(y_list) >= MIN_SEG:
             # print len(y_list)
             mean_y = np.mean(y_list)
             gene_list.append([x, mean_y])
             cnt_list.append(len(y_list))
     if len(gene_list) > 0:
+        # gene_list = mean_y_filter(gene_list)
+        # gene_list = refine_road(gene_list, cnt_list)
         gene_list = mean_y_filter(gene_list)
-        ref_list = refine_road(gene_list, cnt_list)
-        gene_list = mean_y_filter(ref_list)
     return gene_list

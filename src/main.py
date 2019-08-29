@@ -5,7 +5,7 @@
 # @File    : main.py
 
 from dab_scan import DAB_SCAN
-from gene_map import draw_pt
+from gene_map import gene_center_line
 from fetch_data import load_txt
 import matplotlib.pyplot as plt
 
@@ -14,8 +14,10 @@ def main():
     # plt.xlim(72576, 76484)
     # plt.ylim(84367, 86846)
     data_list, rev_index, trace_list = load_txt()
-    labels = DAB_SCAN(data_list, 30, 10)
-    draw_pt(labels, data_list, rev_index)
+    # step 1. clustering by angle
+    labels = DAB_SCAN(data_list, 40, 20, 5)
+    # step 2. generate center line
+    gene_center_line(labels, data_list, rev_index, trace_list)
     plt.show()
 
 

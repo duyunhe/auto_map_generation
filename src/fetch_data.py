@@ -44,6 +44,7 @@ def calc_trace_info(trace_list, merge_list):
     """
     rev_index = {}
     ind = 0
+    # ort是这个点的趋势
     for j, trace in enumerate(trace_list):
         for i, data in enumerate(trace):
             if i == len(trace) - 1:
@@ -51,7 +52,6 @@ def calc_trace_info(trace_list, merge_list):
             else:
                 ort = data_angle(data, trace[i + 1])
             data.ort = ort
-            # if 75.0 < ort < 105:
             merge_list.append([data.x, data.y, ort])
             rev_index[ind] = (j, i)
             ind += 1
@@ -60,7 +60,10 @@ def calc_trace_info(trace_list, merge_list):
 
 def load_txt():
     """
-    :return: all_list list[x, y, angle]  reverse index
+    :return: all_list list[x, y, angle]
+      reverse index
+      trace_list list of each Trace
+      Here, Trace is list of TaxiData
     """
     xy_dict = defaultdict(list)
     fp = open("../data/yhtl.txt")
@@ -74,7 +77,7 @@ def load_txt():
         data = TaxiData(veh, x, y, angle, st)
         xy_dict[veh].append(data)
         idx += 1
-        if idx >= 50000:        # for debug & test
+        if idx >= 200000:        # for debug & test
             break
     fp.close()
     all_list = []

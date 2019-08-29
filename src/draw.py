@@ -24,3 +24,7 @@ def draw_center(pt_list):
     plt.plot(x_list, y_list, color='k', linewidth=2)
 
 
+def draw_line(pt_list):
+    x_list, y_list = zip(*pt_list)
+    plt.plot(x_list, y_list, color='orange', marker='o', linestyle='')
+    plt.plot(x_list, y_list, color='k', alpha=.02)
