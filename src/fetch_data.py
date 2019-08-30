@@ -58,6 +58,7 @@ def calc_trace_info(trace_list, merge_list):
     return rev_index
 
 
+@debug_time
 def load_txt():
     """
     :return: all_list list[x, y, angle]

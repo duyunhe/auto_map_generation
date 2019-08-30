@@ -4,19 +4,19 @@
 # @简介    : Density & Angle Based Spatial Clustering of Applications with Noise
 # @File    : dab-scan.py
 
-from queue import Queue
+from Queue import Queue
 from common import near_angle, mean_angle, debug_time
 from sklearn.neighbors import KDTree
 
 
-def search_bf(ind, angle_list, label_list, init_pos, count_thread, label_index, ort_thread):
+def search_bf(ind, angle_list, label_list, init_pos, count_thread, cur_label, ort_thread):
     """
     :param ind: kdtree下的索引
     :param angle_list:  
     :param label_list: 初始下是-1 访问了但未标记为中心点时为-2
     :param init_pos: 
     :param count_thread: B min cluster point number
-    :param label_index: 当前的index
+    :param cur_label: 当前的index
     :param ort_thread: 角度值相近的阈值
     :return: 
     """
@@ -49,7 +49,7 @@ def search_bf(ind, angle_list, label_list, init_pos, count_thread, label_index, 
             # it should be concluded into another line
             if near_angle(angle_list[ci], first_angle, ort_thread):
                 anchor_cnt += 1
-                label_list[ci] = label_index
+                label_list[ci] = cur_label
                 for i in near_list:
                     if label_list[i] == -1:
                         label_list[i] = -2
@@ -58,7 +58,7 @@ def search_bf(ind, angle_list, label_list, init_pos, count_thread, label_index, 
 
 
 # @debug_time
-def build_kdtree(data_list, A):
+def build_kdtree(data_list, min_radius):
     x_list, y_list, a_list = zip(*data_list)
     data_list = []
     for i, a in enumerate(a_list):
@@ -70,7 +70,7 @@ def build_kdtree(data_list, A):
     x_list, y_list, a_list = zip(*data_list)
     xy_list = zip(x_list, y_list)
     kdt = KDTree(xy_list, leaf_size=10)
-    ind = kdt.query_radius(X=xy_list, r=A)
+    ind = kdt.query_radius(X=xy_list, r=min_radius)
 
     return ind, data_list
 
