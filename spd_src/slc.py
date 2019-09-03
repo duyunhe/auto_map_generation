@@ -9,24 +9,28 @@ from src.common import debug_time
 from src.fetch_data import load_txt
 from sklearn.neighbors import KDTree
 from Queue import Queue
+from time import clock
 import multiprocessing as mp
 
 
 def build_kdtree(data_list):
+    if len(data_list) == 0:
+        return None
     kdt = KDTree(data_list, leaf_size=10)
     return kdt
 
 
-def search_bf(kdt_buckets, label_list, init_pos, count_thread, cur_label, ort_thread, bucket_index, data_list):
+def search_bf(kdt_buckets, label_list, init_pos, count_thread,
+              cur_label, bucket_index, data_list, min_radius):
     """
     :param kdt_buckets: 
     :param label_list: 
     :param init_pos: 
     :param count_thread: 
     :param cur_label: 
-    :param ort_thread: 
     :param bucket_index: 
     :param data_list: list of [x, y]
+    :param min_radius 
     :return: 
     """
     que = Queue()
@@ -38,11 +42,33 @@ def search_bf(kdt_buckets, label_list, init_pos, count_thread, cur_label, ort_th
     while not que.empty():
         cur = que.get()
         bi, bs = cur[:]
-        bi = bucket_index[cur]
+        li = bucket_index[cur]
         cur_cnt = 0
+        near_list = []
         for bucket in range(bi - 5, bi + 6):
+            if bucket >= 360:
+                bucket -= 360
+            if bucket < 0:
+                bucket += 360
             kdt = kdt_buckets[bucket]
-            # ind = kdt.query_radius(X=[[data_list[bi].x, data_list[bi].y]], r=A)
+            if not kdt:
+                continue
+            ind = kdt.query_radius(X=[data_list[li]], r=min_radius)
+            cur_cnt += len(ind[0])
+            for s in ind[0]:
+                near_list.append((bucket, s))
+        # print cur, cur_cnt
+        if cur_cnt >= count_thread:
+            anchor_cnt += 1
+            label_list[li] = cur_label
+            for ni in near_list:
+                next_li = bucket_index[ni]
+                if label_list[next_li] == -1:
+                    label_list[next_li] = -2
+                    que.put(ni)
+
+    # print init_pos, anchor_cnt, cur_label
+    return anchor_cnt
 
 
 def work_proc(arg):
@@ -51,14 +77,10 @@ def work_proc(arg):
     ind_list[idx] = ind
 
 
-def call_back(x):
-    _, _, _, i, _ = x[:]
-    print "finish", i
-
-
 @debug_time
 def spatial_linear_clustering(data_list, A=40, B=20, C=5):
     """
+    as the data size grow up, it can decrease time cost rapidly
     look up src.DAB_SCAN  .^-^.
     :param data_list: list([x, y, angle])
     :param A: min radius 
@@ -87,20 +109,16 @@ def spatial_linear_clustering(data_list, A=40, B=20, C=5):
     x_list, y_list, _ = zip(*data_list)
     xy_list = zip(x_list, y_list)
 
-    print mp.cpu_count()
-    p = mp.Pool(processes=8)
-    m = mp.Manager()
-    ind_list = m.list()
-    for i in range(20):
-        ind_list.append(None)
-    args = [(kdt_buckets[i], xy_list, A, i, ind_list) for i in range(20)]
-
-    for a in args:
-        p.apply_async(work_proc, args=(a, ), callback=call_back(a))
-        # ind = kdt_buckets[i].query_radius(X=xy_list, r=A)
-    p.close()
-    p.join()
     labels = [-1] * n
+
+    cur_label = 0
+    for i in range(360):
+        for j in range(len(data_buckets[i])):
+            if labels[index[(i, j)]] == -1:
+                if search_bf(kdt_buckets, labels, (i, j), B, cur_label, index, xy_list, A) > 0:
+                    cur_label += 1
+
+    return labels
 
 
 def unit_test():

@@ -6,7 +6,8 @@
 
 
 from collections import defaultdict
-from common import mean_route_angle, rotate, mean_y_filter, mean_delta, mean_angle, near_angle, debug_time
+from common import mean_route_angle, rotate, mean_y_filter, median_y_filter, \
+    mean_delta, mean_angle, near_angle, debug_time
 import numpy as np
 from draw import draw_center, draw_points, draw_line
 
@@ -59,39 +60,44 @@ def collect_line_around(pt_list, trace_list, rev, rot):
     collect all the points from beginning to end as trace goes on if the point is anchor
     because the vehicle may turn around and trace back, the trace should be split when turning happened
     :param pt_list: list of anchor point
-    :param trace_list: original trace list
+    :param trace_list: original trace list, list of TaxiData
     :param rev: each index
     :param rot: rotate angle
     :return: list of line(list of Point)
     """
-    begin, end = {}, {}
+    # begin, end = {}, {}
+    trace_detail = {}
     for i, pt in enumerate(pt_list):
         ti, tj = rev[i][:]
         try:
-            begin[ti] = min(begin[ti], tj - 1)
+            trace_detail[ti].append(tj)
         except KeyError:
-            begin[ti] = tj
-        try:
-            end[ti] = max(end[ti], tj + 1)
-        except KeyError:
-            end[ti] = tj
+            trace_detail[ti] = [tj]
+    for ti in trace_detail.keys():
+        trace_detail[ti].sort()
 
     line_list = []
     fact_ort = 90 - rot
-    for i, j in begin.items():
-        bj = max(0, begin[i])
-        ej = min(end[i], len(trace_list[i]) - 1)
+    for i, idx_list in trace_detail.items():
+        iset = set(idx_list)
+        for j in idx_list:
+            if j + 1 < len(trace_list[i]):
+                iset.add(j + 1)
+        fill_list = list(iset)
+        fill_list.sort()
+
         line = []
-        j = bj
-        while j < ej + 1:
-            data = trace_list[i][j]
-            if near_angle(data.ort, fact_ort, 30):
-                line.append([data.x, data.y])
-            else:
+        last_j = None
+        for j in fill_list:
+            pt = trace_list[i][j]
+            if last_j is not None and j - last_j > 3:
                 if len(line) > 1:
                     line_list.append(rotate(line, rot))
-                line = []
-            j = j + 1
+                line = [[pt.x, pt.y]]
+            else:
+                line.append([pt.x, pt.y])
+            last_j = j
+
         if len(line) > 1:
             line_list.append(rotate(line, rot))
 
@@ -99,7 +105,7 @@ def collect_line_around(pt_list, trace_list, rev, rot):
 
 
 @debug_time
-def gene_center_line(labels, data_list, rev_index, trace_list):
+def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
     n = len(labels)
     x_list, y_list, angle_list = zip(*data_list)
     pts_dict = defaultdict(list)
@@ -119,8 +125,8 @@ def gene_center_line(labels, data_list, rev_index, trace_list):
             # draw_points(pt_list, '+', 'k', 0.1, -3)
             pass
         else:
-            # if label != 13:
-            #     continue
+            if debug and label != 20:
+                continue
             angle_list = angle_dict[label]
             a = mean_angle(angle_list)
             try:
@@ -134,17 +140,20 @@ def gene_center_line(labels, data_list, rev_index, trace_list):
                 line_list = collect_line_around(pt_list, trace_list, rev, a)
                 pt_list = rotate(pt_list, a)
                 org_list = rotate(pt_list, -a)
-                draw_points(org_list, 'o', colors[idx], .1, label)
-                # draw_points(pt_list, 'o', colors[idx], .1, label)
+                # if not debug:
+                #     draw_points(org_list, 'o', colors[idx], .1, label)
+                # else:
+                #     draw_points(pt_list, 'o', colors[idx], .1, label)
                 try:
-                    road = center_road(pt_list, line_list)
-                    road = rotate(road, -a)
-                    draw_center(road)
+                    road0, road1 = center_road(pt_list, line_list, debug)
+                    if not debug:
+                        road0 = rotate(road0, -a)
+                    draw_center(road0, 'k')
                 except ValueError:
                     print label, "ValueError"
 
 
-def center_road(pt_list, line_list):
+def center_road(pt_list, line_list, debug=False):
 
     def calc_y(pt0, pt1, x0):
         ax = pt1[0] - pt0[0]
@@ -156,9 +165,10 @@ def center_road(pt_list, line_list):
 
     x_list = [pt[0] for pt in pt_list]
     ln_list = [Line(line) for line in line_list if len(line) > 1]
-    # for line in line_list:
-    #     if len(line) > 1:
-    #         draw_line(line)
+    if debug:
+        for line in line_list:
+            if len(line) > 1:
+                draw_line(line)
     x_list.sort()
 
     # begin scan
@@ -169,7 +179,7 @@ def center_road(pt_list, line_list):
     # avoid error on curve
     AFFECT_DIST = 30
     # need MIN_SEG segments to get the mean value, in order to avoid sample insufficiency
-    MIN_SEG = 10
+    MIN_SEG = 5
     # BRUTE FORCE..
     for x in x_list:
         y_list = []
@@ -192,7 +202,9 @@ def center_road(pt_list, line_list):
             gene_list.append([x, mean_y])
             cnt_list.append(len(y_list))
     if len(gene_list) > 0:
-        # gene_list = mean_y_filter(gene_list)
-        # gene_list = refine_road(gene_list, cnt_list)
-        gene_list = mean_y_filter(gene_list)
-    return gene_list
+        ref_list = mean_y_filter(gene_list)
+    else:
+        ref_list = None
+    #     # gene_list = refine_road(gene_list, cnt_list)
+    #     gene_list = mean_y_filter(gene_list)
+    return gene_list, ref_list

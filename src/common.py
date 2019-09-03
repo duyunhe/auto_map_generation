@@ -156,6 +156,32 @@ def mean_delta(pt_list):
 def mean_y_filter(pt_list):
     ret_list = []
     for i, pt in enumerate(pt_list):
+        bi = i - 1
+        x = pt_list[i][0]
+        for j in range(bi, max(0, i - 10), -1):
+            x0 = pt_list[j][0]
+            if x - x0 > 30:
+                bi = j + 1
+                break
+        else:
+            bi = max(0, i - 10)
+        ei = i + 1
+        for j in range(ei, min(len(pt_list) - 1, i + 10)):
+            x0 = pt_list[j][0]
+            if x0 - x > 30:
+                ei = j - 1
+                break
+        else:
+            ei = min(len(pt_list) - 1, i + 10)
+        _, y_list = zip(*pt_list[bi:ei])
+        y = np.mean(y_list)
+        ret_list.append([x, y])
+    return ret_list
+
+
+def median_y_filter(pt_list):
+    ret_list = []
+    for i, pt in enumerate(pt_list):
         bi, ei = max(0, i - 10), min(len(pt_list), i + 10)
         x = pt_list[i][0]
         _, y_list = zip(*pt_list[bi:ei])

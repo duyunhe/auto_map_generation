@@ -19,12 +19,12 @@ def draw_points(xy_list, marker, color, alpha, label):
         plt.text(mx, my, str(label))
 
 
-def draw_center(pt_list):
+def draw_center(pt_list, color):
     x_list, y_list = zip(*pt_list)
-    plt.plot(x_list, y_list, color='k', linewidth=2)
+    plt.plot(x_list, y_list, color=color, marker='', linewidth=1)
 
 
 def draw_line(pt_list):
     x_list, y_list = zip(*pt_list)
-    plt.plot(x_list, y_list, color='orange', marker='o', linestyle='')
+    plt.plot(x_list, y_list, color='orange', marker='+', linestyle='')
     plt.plot(x_list, y_list, color='k', alpha=.02)

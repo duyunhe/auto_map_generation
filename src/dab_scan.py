@@ -32,7 +32,7 @@ def search_bf(ind, angle_list, label_list, init_pos, count_thread, cur_label, or
         near_list = []
         na_list = []
         for i in ind[ci]:
-            if near_angle(angle_list[i], angle_list[ci], 15):
+            if near_angle(angle_list[i], angle_list[ci], ort_thread):
                 na_list.append(angle_list[i])
         ma = mean_angle(na_list)
         na_list = []
@@ -76,7 +76,7 @@ def build_kdtree(data_list, min_radius):
 
 
 @debug_time
-def DAB_SCAN(data_list, A, B, C):
+def DAB_SCAN(data_list, A=40, B=20, C=5):
     """
     in paper, this method is called as SLC (Spatial Linear Clustering)
     :param data_list: list([x, y, angle])
