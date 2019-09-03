@@ -17,7 +17,7 @@ def main():
     labels = DAB_SCAN(data_list)
     # step 2. generate center line
     gene_center_line(labels, data_list, rev_index, trace_list)
-    # plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':

@@ -145,6 +145,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
                 # else:
                 #     draw_points(pt_list, 'o', colors[idx], .1, label)
                 try:
+                    print "label", label
                     road0, road1 = center_road(pt_list, line_list, debug)
                     if not debug:
                         road0 = rotate(road0, -a)

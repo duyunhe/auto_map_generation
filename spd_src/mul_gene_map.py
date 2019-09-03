@@ -132,15 +132,19 @@ def center_road(pt_list, line_list, debug=False):
         ref_list = None
     #  gene_list = refine_road(gene_list, cnt_list)
     #  gene_list = mean_y_filter(gene_list)
-    return gene_list, ref_list
+    return gene_list
 
 
 def work(tup_list, rd_list):
     for item in tup_list:
-        pt_list, line_list, a = item[:]
+        pt_list, line_list, a, lb = item[:]
         road = center_road(pt_list, line_list)
-        road = rotate(road, -a)
-        rd_list.append(road)
+        print "label", lb
+        try:
+            road = rotate(road, -a)
+            rd_list.append(road)
+        except ValueError:
+            print "value error", lb
 
 
 @debug_time
@@ -179,11 +183,12 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
             if len(pt_list) > 50:
                 a = 90 - a
                 line_list = collect_line_around(pt_list, trace_list, rev, a)
-                tup_list.append([pt_list, line_list, a])
+                pt_list = rotate(pt_list, a)
+                tup_list.append([pt_list, line_list, a, label])
 
     mng = mp.Manager()
     ret_list = mng.list()
-    proc_num = 24
+    proc_num = 1
     pool = mp.Pool(processes=proc_num)
     for i in range(proc_num):
         pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))
