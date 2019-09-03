@@ -139,7 +139,7 @@ def work(tup_list, rd_list):
     for item in tup_list:
         pt_list, line_list, a, lb = item[:]
         road = center_road(pt_list, line_list)
-        print "label", lb
+        # print "label", lb
         try:
             road = rotate(road, -a)
             rd_list.append(road)
