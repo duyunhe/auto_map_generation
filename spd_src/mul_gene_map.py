@@ -137,7 +137,7 @@ def center_road(pt_list, line_list, debug=False):
 
 def work(tup_list, rd_list):
     for item in tup_list:
-        line_list, pt_list, a = item[:]
+        pt_list, line_list, a = item[:]
         road = center_road(pt_list, line_list)
         road = rotate(road, -a)
         rd_list.append(road)
@@ -186,6 +186,9 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
     proc_num = 24
     pool = mp.Pool(processes=proc_num)
     for i in range(proc_num):
-        pool.apply_async(work, args=(trace_list[i::proc_num], ret_list))
+        pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))
     pool.close()
     pool.join()
+
+    for road in ret_list:
+        draw_center(road, 'k')
