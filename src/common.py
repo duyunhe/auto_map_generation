@@ -106,6 +106,11 @@ def near_angle(a0, a1, delta):
     return dif < delta or dif > 360 - delta
 
 
+def near_angle_counter(a0, a1, delta):
+    dif = fabs(a0 - a1)
+    return dif < delta or dif > 360 - delta or 180 - delta < dif < 180 + delta
+
+
 def mean_route_angle(pt_list, rev_index_list):
     """
     计算原数据集中的平均角度

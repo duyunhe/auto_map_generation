@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2019/9/3 15:35
+# @Time    : 2019/9/4 14:46
 # @Author  : yhdu@tongwoo.cn
 # @简介    : 
-# @File    : mul_gene_map.py
-
+# @File    : gene_map.py
 
 from collections import defaultdict
 from src.common import mean_route_angle, rotate, mean_y_filter, median_y_filter, \
@@ -25,6 +24,33 @@ class Line(object):
 
     def __lt__(self, other):
         return self.first_x < other.first_x
+
+
+def refine_road(pt_list, cnt_list):
+    bi, ei = 0, len(cnt_list) - 1
+    for i, cnt in enumerate(cnt_list):
+        if cnt > 20:
+            bi = i
+            break
+    for i, cnt in enumerate(cnt_list):
+        if cnt > 20:
+            ei = i
+    # print bi, ei
+    ref_list = []
+    d0 = mean_delta(pt_list[bi:bi + 50])
+    d1 = mean_delta(pt_list[ei - 50:ei])
+    for i, pt in enumerate(pt_list):
+        if i < bi:
+            x = pt_list[i][0]
+            y = d0 * (x - pt_list[bi][0]) + pt_list[bi][1]
+            ref_list.append([x, y])
+        elif i > ei:
+            x = pt_list[i][0]
+            y = d1 * (x - pt_list[ei][0]) + pt_list[ei][1]
+            ref_list.append([x, y])
+        else:
+            ref_list.append(pt)
+    return ref_list
 
 
 def collect_line_around(pt_list, trace_list, rev, rot):
@@ -76,6 +102,67 @@ def collect_line_around(pt_list, trace_list, rev, rot):
             line_list.append(rotate(line, rot))
 
     return line_list
+
+
+def work(tup_list, rd_list):
+    for item in tup_list:
+        pt_list, line_list, a, lb = item[:]
+        road = center_road(pt_list, line_list)
+        # print "label", lb
+        try:
+            road = rotate(road, -a)
+            rd_list.append(road)
+        except ValueError:
+            print "value error", lb
+
+
+@debug_time
+def gene_center_line(labels, data_list, rev_index, trace_list, ma_list, debug=False):
+    n = len(labels)
+    x_list, y_list, angle_list = zip(*data_list)
+    pts_dict = defaultdict(list)
+    angle_dict = defaultdict(list)
+    rev_dict = defaultdict(list)
+
+    for i in range(n):
+        pts_dict[labels[i]].append([x_list[i], y_list[i]])
+        angle_dict[labels[i]].append(angle_list[i])
+        rev_dict[labels[i]].append(rev_index[i])
+
+    colors = ['pink', 'orange', 'y',
+              'blue', 'c', 'g', 'lime', 'red']
+
+    tup_list = []
+    for label, pt_list in pts_dict.items():
+        rev = rev_dict[label]
+        if label == -2:
+            # draw_points(pt_list, '+', 'k', 0.1, -3)
+            pass
+        else:
+            if debug and label != 20:
+                continue
+            a = ma_list[label]
+            try:
+                idx = int(a / 45)
+            except ValueError:
+                continue
+            if len(pt_list) > 50:
+                a = 90 - a
+                line_list = collect_line_around(pt_list, trace_list, rev, a)
+                pt_list = rotate(pt_list, a)
+                tup_list.append([pt_list, line_list, a, label])
+
+    mng = mp.Manager()
+    ret_list = mng.list()
+    proc_num = 8
+    pool = mp.Pool(processes=proc_num)
+    for i in range(proc_num):
+        pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))
+    pool.close()
+    pool.join()
+
+    for road in ret_list:
+        draw_center(road, 'k')
 
 
 def center_road(pt_list, line_list, debug=False):
@@ -130,70 +217,6 @@ def center_road(pt_list, line_list, debug=False):
         ref_list = mean_y_filter(gene_list)
     else:
         ref_list = None
-    #  gene_list = refine_road(gene_list, cnt_list)
-    #  gene_list = mean_y_filter(gene_list)
-    return gene_list
-
-
-def work(tup_list, rd_list):
-    for item in tup_list:
-        pt_list, line_list, a, lb = item[:]
-        road = center_road(pt_list, line_list)
-        # print "label", lb
-        try:
-            road = rotate(road, -a)
-            rd_list.append(road)
-        except ValueError:
-            print "value error", lb
-
-
-@debug_time
-def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
-    n = len(labels)
-    x_list, y_list, angle_list = zip(*data_list)
-    pts_dict = defaultdict(list)
-    angle_dict = defaultdict(list)
-    rev_dict = defaultdict(list)
-
-    for i in range(n):
-        pts_dict[labels[i]].append([x_list[i], y_list[i]])
-        angle_dict[labels[i]].append(angle_list[i])
-        rev_dict[labels[i]].append(rev_index[i])
-
-    colors = ['pink', 'orange', 'y',
-              'blue', 'c', 'g', 'lime', 'red']
-
-    tup_list = []
-    for label, pt_list in pts_dict.items():
-        rev = rev_dict[label]
-        if label == -2:
-            # draw_points(pt_list, '+', 'k', 0.1, -3)
-            pass
-        else:
-            if debug and label != 20:
-                continue
-            angle_list = angle_dict[label]
-            a = mean_angle(angle_list)
-            try:
-                # print a
-                idx = int(a / 45)
-            except ValueError:
-                continue
-            # print a
-            if len(pt_list) > 50:
-                a = 90 - a
-                line_list = collect_line_around(pt_list, trace_list, rev, a)
-                pt_list = rotate(pt_list, a)
-                tup_list.append([pt_list, line_list, a, label])
-
-    mng = mp.Manager()
-    ret_list = mng.list()
-    proc_num = 8
-    pool = mp.Pool(processes=proc_num)
-    for i in range(proc_num):
-        pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))
-    pool.close()
-    pool.join()
-
-    for road in ret_list:
-        draw_center(road, 'k')
+    #     # gene_list = refine_road(gene_list, cnt_list)
+    #     gene_list = mean_y_filter(gene_list)
+    return ref_list

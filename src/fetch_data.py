@@ -67,7 +67,7 @@ def load_txt():
       Here, Trace is list of TaxiData
     """
     xy_dict = defaultdict(list)
-    fp = open("../data/yhtl.txt")
+    fp = open("./data/yhtl.txt")
     idx = 0
     for line in fp.readlines():
         items = line.strip('\n').split(',')
@@ -78,7 +78,7 @@ def load_txt():
         data = TaxiData(veh, x, y, angle, st)
         xy_dict[veh].append(data)
         idx += 1
-        if idx >= 80000:        # for debug & test
+        if idx >= 120000:        # for debug & test
             break
     fp.close()
     all_list = []
