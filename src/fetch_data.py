@@ -78,10 +78,11 @@ def load_txt():
         data = TaxiData(veh, x, y, angle, st)
         xy_dict[veh].append(data)
         idx += 1
-        if idx >= 20000:        # for debug & test
+        if idx >= 80000:        # for debug & test
             break
     fp.close()
     all_list = []
     trace_list = split_trace(xy_dict)
     rev_index = calc_trace_info(trace_list, all_list)
+    print "valid record", len(all_list)
     return all_list, rev_index, trace_list

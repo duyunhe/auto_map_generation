@@ -9,7 +9,7 @@ from common import near_angle, mean_angle, debug_time
 from sklearn.neighbors import KDTree
 
 
-def search_bf(ind, angle_list, label_list, init_pos, count_thread, cur_label, ort_thread):
+def search_bf(ind, angle_list, label_list, init_pos, count_thread, cur_label, ort_thread, counter=False):
     """
     :param ind: kdtree下的索引
     :param angle_list:  
@@ -18,6 +18,7 @@ def search_bf(ind, angle_list, label_list, init_pos, count_thread, cur_label, or
     :param count_thread: B min cluster point number
     :param cur_label: 当前的index
     :param ort_thread: 角度值相近的阈值
+    :param counter: 搜索时是否取相反方向，即是否生成单条道路
     :return: 
     """
     que = Queue()
