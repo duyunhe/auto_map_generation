@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2019/8/27 11:05
+# @Time    : 2019/9/4 14:04
 # @Author  : yhdu@tongwoo.cn
-# @简介    : Density & Angle Based Spatial Clustering of Applications with Noise
-# @File    : dab-scan.py
+# @简介    : 
+# @File    : dab_scan.py
 
 from Queue import Queue
-from common import near_angle, mean_angle, debug_time
+from src.common import near_angle_counter, mean_angle, debug_time, near_angle
 from sklearn.neighbors import KDTree
 
 
@@ -30,31 +30,35 @@ def search_bf(ind, angle_list, label_list, init_pos, count_thread, cur_label, or
         ci = que.get()
         # print cur
         near_list = []
-        na_list = []
+        na_list, ave_list = [], []
         for i in ind[ci]:
             if near_angle(angle_list[i], angle_list[ci], ort_thread):
+                ave_list.append(angle_list[i])
                 na_list.append(angle_list[i])
-        ma = mean_angle(na_list)
+            elif near_angle_counter(angle_list[i], angle_list[ci], ort_thread):
+                na_list.append(angle_list[i])
+
+        ma = mean_angle(ave_list)
         na_list = []
         # use mean angle instead of the point angle itself
         for i in ind[ci]:
-            if near_angle(angle_list[i], ma, ort_thread):
+            if near_angle_counter(angle_list[i], ma, ort_thread):
                 near_list.append(i)
                 na_list.append(angle_list[i])
         if len(near_list) >= count_thread:
             if first_angle == -1:
-                first_angle = mean_angle(na_list)
+                first_angle = ma
             # if angle has changed compared with first point
             # then stop
             # it should be concluded into another line
-            if near_angle(angle_list[ci], first_angle, ort_thread):
+            if near_angle_counter(angle_list[ci], first_angle, ort_thread):
                 anchor_cnt += 1
                 label_list[ci] = cur_label
                 for i in near_list:
                     if label_list[i] == -1:
                         label_list[i] = -2
                         que.put(i)
-    return anchor_cnt
+    return anchor_cnt, first_angle
 
 
 # @debug_time
@@ -83,15 +87,18 @@ def DAB_SCAN(data_list, A=40, B=20, C=5):
     :param A: min radius 
     :param B: points count thread
     :param C: anchor near angle
-    :return: labels to each point in data_list
+    :return: labels to each point in data_list, and each average angle of cluster
     """
     n = len(data_list)
     ind, data_list = build_kdtree(data_list, A)
     _, _, angle_list = zip(*data_list)
     labels = [-1] * n
     li = 0      # label index
+    ma_list = []
     for i in range(n):
         if labels[i] == -1:     # unvisited
-            if search_bf(ind, angle_list, labels, i, B, li, C) > 0:
+            cnt, ma = search_bf(ind, angle_list, labels, i, B, li, C)
+            if ma > -1:
                 li += 1
-    return labels
+                ma_list.append(ma)
+    return labels, ma_list
