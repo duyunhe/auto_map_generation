@@ -5,7 +5,7 @@
 # @File    : main.py
 
 from src.dab_scan import DAB_SCAN
-from spd_src.mul_gene_map import gene_center_line
+from src.gene_map import gene_center_line
 from src.fetch_data import load_txt
 import matplotlib.pyplot as plt
 
@@ -15,7 +15,7 @@ def main():
     # step 1. clustering by angle
     labels = DAB_SCAN(data_list)
     # step 2. generate center line
-    gene_center_line(labels, data_list, rev_index, trace_list)
+    gene_center_line(labels, data_list, rev_index, trace_list, True)
     plt.show()
 
 

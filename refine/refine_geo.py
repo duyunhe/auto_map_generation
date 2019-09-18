@@ -21,10 +21,10 @@ def info(idx, road):
 
 def draw():
     road_list = read_road()
-    yh_list = [10, 8, 16, 17, 18, 20]
+    ex_list = [9]
     for i, road in enumerate(road_list):
         ma, l = info(i, road)
-        if l > 100:
+        if l > 100 and i not in ex_list:
             draw_center(road)
             draw_line_idx(road, i)
 

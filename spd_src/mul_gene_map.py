@@ -14,17 +14,22 @@ import multiprocessing as mp
 
 
 class Line(object):
-    def __init__(self, line):
+    def __init__(self, line, idx):
         """
-        :param line: list of Point 
+        :param line: list of Point
+        :param idx: index of line in order to record after sorted
         """
         x_list, y_list = zip(*line)
         self.first_x = min(x_list)
         self.last_x = max(x_list)
         self.line = line
+        self.idx = idx
 
     def __lt__(self, other):
-        return self.first_x < other.first_x
+        if self.first_x == other.first_x:
+            return self.last_x < self.last_x
+        else:
+            return self.first_x < other.first_x
 
 
 def collect_line_around(pt_list, trace_list, rev, rot):
@@ -98,7 +103,7 @@ def center_road(pt_list, line_list, debug=False):
         return dx / ax * ay + pt0[1]
 
     x_list = [pt[0] for pt in pt_list]
-    ln_list = [Line(line) for line in line_list if len(line) > 1]
+    ln_list = [Line(line, i) for i, line in enumerate(line_list)]
     if debug:
         for line in line_list:
             if len(line) > 1:
@@ -197,7 +202,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
 
     mng = mp.Manager()
     ret_list = mng.list()
-    proc_num = 8
+    proc_num = 1
     pool = mp.Pool(processes=proc_num)
     for i in range(proc_num):
         pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))

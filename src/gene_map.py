@@ -10,12 +10,13 @@ from common import mean_route_angle, rotate, mean_y_filter, median_y_filter, \
     mean_delta, mean_angle, near_angle, debug_time
 import numpy as np
 from draw import draw_center, draw_points, draw_line
+import math
 
 
 class Line(object):
     def __init__(self, line):
         """
-        :param line: list of Point 
+        :param line: list of Point
         """
         x_list, y_list = zip(*line)
         self.first_x = min(x_list)
@@ -23,34 +24,10 @@ class Line(object):
         self.line = line
 
     def __lt__(self, other):
-        return self.first_x < other.first_x
-
-
-def refine_road(pt_list, cnt_list):
-    bi, ei = 0, len(cnt_list) - 1
-    for i, cnt in enumerate(cnt_list):
-        if cnt > 20:
-            bi = i
-            break
-    for i, cnt in enumerate(cnt_list):
-        if cnt > 20:
-            ei = i
-    # print bi, ei
-    ref_list = []
-    d0 = mean_delta(pt_list[bi:bi + 50])
-    d1 = mean_delta(pt_list[ei - 50:ei])
-    for i, pt in enumerate(pt_list):
-        if i < bi:
-            x = pt_list[i][0]
-            y = d0 * (x - pt_list[bi][0]) + pt_list[bi][1]
-            ref_list.append([x, y])
-        elif i > ei:
-            x = pt_list[i][0]
-            y = d1 * (x - pt_list[ei][0]) + pt_list[ei][1]
-            ref_list.append([x, y])
+        if self.first_x == other.first_x:
+            return self.last_x < self.last_x
         else:
-            ref_list.append(pt)
-    return ref_list
+            return self.first_x < other.first_x
 
 
 def collect_line_around(pt_list, trace_list, rev, rot):
@@ -125,7 +102,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
             # draw_points(pt_list, '+', 'k', 0.1, -3)
             pass
         else:
-            if debug and label != 20:
+            if debug and label != 21:
                 continue
             angle_list = angle_dict[label]
             a = mean_angle(angle_list)
@@ -140,8 +117,8 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
                 line_list = collect_line_around(pt_list, trace_list, rev, a)
                 pt_list = rotate(pt_list, a)
                 org_list = rotate(pt_list, -a)
-                # if not debug:
-                #     draw_points(org_list, 'o', colors[idx], .1, label)
+                if debug:
+                    draw_points(pt_list, 'o', colors[idx], .2, label)
                 # else:
                 #     draw_points(pt_list, 'o', colors[idx], .1, label)
                 try:
@@ -164,48 +141,74 @@ def center_road(pt_list, line_list, debug=False):
         ay = pt1[1] - pt0[1]
         return dx / ax * ay + pt0[1]
 
-    x_list = [pt[0] for pt in pt_list]
-    ln_list = [Line(line) for line in line_list if len(line) > 1]
+    x_list, y_list = zip(*pt_list)
+    min_ptx, max_ptx = min(x_list), max(x_list)
+    # get max range for scan
+
+    ln_list = [Line(line) for i, line in enumerate(line_list)]
     if debug:
         for line in line_list:
-            if len(line) > 1:
-                draw_line(line)
-    x_list.sort()
+            draw_line(line)
+    ln_list.sort()
 
     # begin scan
     # from left to right
-    gene_list = []
+    gene_list = []      # list [x, y]
     cnt_list = []
     # not all points will affect the center point
     # avoid error on curve
     AFFECT_DIST = 30
     # need MIN_SEG segments to get the mean value, in order to avoid sample insufficiency
     MIN_SEG = 5
-    # BRUTE FORCE..
-    for x in x_list:
-        y_list = []
-        for ln in ln_list:
-            if ln.first_x <= x <= ln.last_x:
-                for i in range(len(ln.line) - 1):
-                    if ln.line[i][0] <= x <= ln.line[i + 1][0]:
-                        if x <= ln.line[i][0] + AFFECT_DIST or x >= ln.line[i + 1][0] - AFFECT_DIST:
-                            y = calc_y(ln.line[i], ln.line[i + 1], x)
-                            y_list.append(y)
-                            break
-                    if ln.line[i + 1][0] <= x <= ln.line[i][0]:
-                        if x <= ln.line[i + 1][0] + AFFECT_DIST or x >= ln.line[i][0] - AFFECT_DIST:
-                            y = calc_y(ln.line[i], ln.line[i + 1], x)
-                            y_list.append(y)
-                            break
-        if len(y_list) >= MIN_SEG:
-            # print len(y_list)
-            mean_y = np.mean(y_list)
-            gene_list.append([x, mean_y])
-            cnt_list.append(len(y_list))
+    cur_idx = 0
+    n_road = len(ln_list)
+    pos = [0] * n_road
+    scan_list = [cur_idx]
+    cur_idx = 1
+    # scanline
+    while len(scan_list) != 0:
+        # find minx to update y
+        minx, sel_idx = 1e10, -1
+        for idx in scan_list:
+            p = pos[idx]            # idx
+            r = ln_list[idx].line   # road
+            x = r[p][0]             # x
+            if x < minx:
+                minx, sel_idx = x, idx
+        # check if new segment should be added
+        if cur_idx < n_road:
+            new_x = ln_list[cur_idx].first_x
+            if new_x < minx:
+                scan_list.append(cur_idx)
+                sel_idx = cur_idx
+                cur_idx += 1
+                minx = new_x
+        if minx > max_ptx:
+            break
+        s, c, cnt = 0.0, 0, 0
+        for idx in scan_list:
+            p = pos[idx]
+            r = ln_list[idx].line
+            y = r[p][1]
+            per = min(minx - ln_list[idx].first_x, ln_list[idx].last_x - minx) / \
+                     (ln_list[idx].last_x - ln_list[idx].first_x)
+            w = math.pow(10, per + 0.1) - 1
+            if sel_idx == idx:
+                ny = y
+                s, c, cnt = s + ny * w, c + w, cnt + 1
+            elif r[p][0] - minx < AFFECT_DIST or minx - r[p - 1][0] < AFFECT_DIST:
+                ny = calc_y(r[p - 1], r[p], minx)
+                s, c, cnt = s + ny * w, c + w, cnt + 1
+        if cnt >= MIN_SEG:
+            gene_list.append([minx, s / c])
+        pos[sel_idx] += 1
+        # check if any segment will be removed
+        l = len(ln_list[sel_idx].line)
+        if pos[sel_idx] == l:
+            scan_list.remove(sel_idx)
+
     if len(gene_list) > 0:
         ref_list = mean_y_filter(gene_list)
     else:
         ref_list = None
-    #     # gene_list = refine_road(gene_list, cnt_list)
-    #     gene_list = mean_y_filter(gene_list)
     return gene_list, ref_list
