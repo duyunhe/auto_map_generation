@@ -26,36 +26,18 @@ class Line(object):
         return self.first_x < other.first_x
 
 
-def refine_road(pt_list, cnt_list):
-    bi, ei = 0, len(cnt_list) - 1
-    for i, cnt in enumerate(cnt_list):
-        if cnt > 20:
-            bi = i
-            break
-    for i, cnt in enumerate(cnt_list):
-        if cnt > 20:
-            ei = i
-    # print bi, ei
-    ref_list = []
-    d0 = mean_delta(pt_list[bi:bi + 50])
-    d1 = mean_delta(pt_list[ei - 50:ei])
-    for i, pt in enumerate(pt_list):
-        if i < bi:
-            x = pt_list[i][0]
-            y = d0 * (x - pt_list[bi][0]) + pt_list[bi][1]
-            ref_list.append([x, y])
-        elif i > ei:
-            x = pt_list[i][0]
-            y = d1 * (x - pt_list[ei][0]) + pt_list[ei][1]
-            ref_list.append([x, y])
-        else:
-            ref_list.append(pt)
-    return ref_list
+def save_road(road_list):
+    fp = open('./data/road.txt', 'w')
+    for road in road_list:
+        sp_list = ["{0},{1}".format(pt[0], pt[1]) for pt in road]
+        str_road = ';'.join(sp_list)
+        fp.write(str_road + '\n')
+    fp.close()
 
 
 def collect_line_around(pt_list, trace_list, rev, rot):
     """
-    MOST important to road segment generation
+    important to road segment generation
     trace_list[ti][tj] is pt
     collect all the points from beginning to end as trace goes on if the point is anchor
     because the vehicle may turn around and trace back, the trace should be split when turning happened
@@ -162,7 +144,9 @@ def gene_center_line(labels, data_list, rev_index, trace_list, ma_list, debug=Fa
     pool.join()
 
     for road in ret_list:
-        draw_center(road, 'k')
+        draw_center(road)
+
+    save_road(ret_list)
 
 
 def center_road(pt_list, line_list, debug=False):
@@ -192,7 +176,7 @@ def center_road(pt_list, line_list, debug=False):
     AFFECT_DIST = 30
     # need MIN_SEG segments to get the mean value, in order to avoid sample insufficiency
     MIN_SEG = 5
-    # BRUTE FORCE..
+    # BRUTE FORCE... not good enough
     for x in x_list:
         y_list = []
         for ln in ln_list:

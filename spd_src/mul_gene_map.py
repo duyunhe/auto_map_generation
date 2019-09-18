@@ -78,6 +78,15 @@ def collect_line_around(pt_list, trace_list, rev, rot):
     return line_list
 
 
+def save_road(road_list):
+    fp = open('./data/road.txt', 'w')
+    for road in road_list:
+        sp_list = ["{0},{1}".format(pt[0], pt[1]) for pt in road]
+        str_road = ';'.join(sp_list)
+        fp.write(str_road + '\n')
+    fp.close()
+
+
 def center_road(pt_list, line_list, debug=False):
 
     def calc_y(pt0, pt1, x0):
@@ -197,3 +206,5 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
 
     for road in ret_list:
         draw_center(road, 'k')
+
+    save_road(ret_list)

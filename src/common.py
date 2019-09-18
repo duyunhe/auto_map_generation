@@ -72,6 +72,10 @@ def xy_angle(x0, y0, x1, y1):
     return angle
 
 
+def xy_radian(x0, y0, x1, y1):
+    return atan2(y1 - y0, x1 - x0)
+
+
 def data_angle(last_data, cur_data):
     x0, y0 = last_data.x, last_data.y
     x1, y1 = cur_data.x, cur_data.y
@@ -193,3 +197,5 @@ def median_y_filter(pt_list):
         y = np.median(y_list)
         ret_list.append([x, y])
     return ret_list
+
+
