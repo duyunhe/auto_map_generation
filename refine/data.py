@@ -4,6 +4,8 @@
 # @简介    : 
 # @File    : data.py
 
+from src.common import xy_angle, mean_angle
+
 
 def read_road(idx=None):
     if idx is None:
@@ -26,11 +28,24 @@ def read_road(idx=None):
     return rd_list
 
 
-def load_road():
+def info(idx, road):
+    n = len(road)
+    a_list = [xy_angle(road[i - 1][0], road[i - 1][1], road[i][0], road[i][1]) for i in range(1, n)]
+    ma = mean_angle(a_list)
+    print idx, ma, n
+    return ma, n
+
+
+def load_road(ort=0):
     road_list = read_road()
-    yh_list = [10, 8, 16, 17, 18, 20]
-    yhtl = []
+    ret_list = []
     for i, road in enumerate(road_list):
-        if i in yh_list:
-            yhtl.append(road)
-    return yhtl
+        ma, l = info(i, road)
+        if l > 50:
+            if ort == 0:
+                if ma < 180:
+                    ret_list.append(road)
+            else:
+                if ma > 180:
+                    ret_list.append(road)
+    return ret_list

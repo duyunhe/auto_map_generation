@@ -383,10 +383,11 @@ def in_hz(lat, lng):
     return 119 < lng < 121 and 29 < lat < 31
 
 
-def dog_last(path):
+def dog_last(path, off_dist):
     """
     简化道路，道格拉斯算法
     :param path: [[x,y]...[x,y]]
+    :param off_dist: float
     :return: 
     """
     if len(path) == 2:
@@ -399,8 +400,8 @@ def dog_last(path):
         if dist > max_dist:
             max_dist, sel = dist, i
     new_path = []
-    if max_dist > 2:
-        path0, path1 = dog_last(path[:sel + 1]), dog_last(path[sel:])
+    if max_dist > off_dist:
+        path0, path1 = dog_last(path[:sel + 1], off_dist), dog_last(path[sel:], off_dist)
         new_path.extend(path0[:-1])
         new_path.extend(path1)
     else:

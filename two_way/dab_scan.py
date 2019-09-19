@@ -80,7 +80,7 @@ def build_kdtree(data_list, min_radius):
 
 
 @debug_time
-def DAB_SCAN(data_list, A=40, B=20, C=10):
+def DAB_SCAN(data_list, A=40, B=20, C=5):
     """
     in paper, this method is called as SLC (Spatial Linear Clustering)
     :param data_list: list([x, y, angle])

@@ -78,7 +78,7 @@ def load_txt():
         data = TaxiData(veh, x, y, angle, st)
         xy_dict[veh].append(data)
         idx += 1
-        if idx >= 1000000:        # for debug & test
+        if idx >= 80000:        # for debug & test
             break
     fp.close()
     all_list = []

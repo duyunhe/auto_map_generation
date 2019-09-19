@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 def main():
     data_list, rev_index, trace_list = load_txt()
     # step 1. clustering by angle
-    labels = DAB_SCAN(data_list)
+    labels, ma_list = DAB_SCAN(data_list)
     # step 2. generate center line
-    gene_center_line(labels, data_list, rev_index, trace_list, False)
+    gene_center_line(labels, data_list, rev_index, trace_list, ma_list, False)
     plt.show()
 
 

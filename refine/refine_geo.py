@@ -24,7 +24,7 @@ def draw():
     ex_list = [9]
     for i, road in enumerate(road_list):
         ma, l = info(i, road)
-        if l > 100 and i not in ex_list:
+        if l > 50:
             draw_center(road)
             draw_line_idx(road, i)
 

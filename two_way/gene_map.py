@@ -201,6 +201,6 @@ def center_road(pt_list, line_list, debug=False):
         ref_list = mean_y_filter(gene_list)
     else:
         ref_list = None
-    #     # gene_list = refine_road(gene_list, cnt_list)
-    #     gene_list = mean_y_filter(gene_list)
+    ref_list.sort()
+
     return ref_list
