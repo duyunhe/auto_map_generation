@@ -9,7 +9,7 @@ from collections import defaultdict
 from common import mean_route_angle, rotate, mean_y_filter, median_y_filter, \
     mean_delta, mean_angle, near_angle, debug_time
 import numpy as np
-from draw import draw_center, draw_points, draw_line
+from draw import draw_center, draw_points, draw_line, draw_line_idx
 import math
 
 
@@ -122,13 +122,17 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
                 # else:
                 #     draw_points(pt_list, 'o', colors[idx], .1, label)
                 try:
-                    # print "label", label
+                    print "label", label
                     road0, road1 = center_road(pt_list, line_list, debug)
+                    road0 = road1
                     if not debug:
                         road0 = rotate(road0, -a)
                     draw_center(road0, 'k')
+                    draw_line_idx(road0, label)
                 except ValueError:
                     print label, "ValueError"
+                except TypeError:
+                    print label, "TypeError"
 
 
 def center_road(pt_list, line_list, debug=False):
@@ -165,6 +169,7 @@ def center_road(pt_list, line_list, debug=False):
     pos = [0] * n_road
     scan_list = [cur_idx]
     cur_idx = 1
+    rm_cnt = 0
     # scanline
     while len(scan_list) != 0:
         # find minx to update y
@@ -206,7 +211,9 @@ def center_road(pt_list, line_list, debug=False):
         l = len(ln_list[sel_idx].line)
         if pos[sel_idx] == l:
             scan_list.remove(sel_idx)
+            rm_cnt += 1
 
+    # print n_road, rm_cnt
     if len(gene_list) > 0:
         ref_list = mean_y_filter(gene_list)
     else:

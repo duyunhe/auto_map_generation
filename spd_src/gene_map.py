@@ -2,7 +2,7 @@
 # @Time    : 2019/9/3 15:35
 # @Author  : yhdu@tongwoo.cn
 # @简介    : 
-# @File    : mul_gene_map.py
+# @File    : gene_map.py
 
 
 from collections import defaultdict
@@ -11,19 +11,18 @@ from src.common import mean_route_angle, rotate, mean_y_filter, median_y_filter,
 import numpy as np
 from src.draw import draw_center, draw_points, draw_line
 import multiprocessing as mp
+import math
 
 
 class Line(object):
-    def __init__(self, line, idx):
+    def __init__(self, line):
         """
         :param line: list of Point
-        :param idx: index of line in order to record after sorted
         """
         x_list, y_list = zip(*line)
         self.first_x = min(x_list)
         self.last_x = max(x_list)
         self.line = line
-        self.idx = idx
 
     def __lt__(self, other):
         if self.first_x == other.first_x:
@@ -102,63 +101,94 @@ def center_road(pt_list, line_list, debug=False):
         ay = pt1[1] - pt0[1]
         return dx / ax * ay + pt0[1]
 
-    x_list = [pt[0] for pt in pt_list]
-    ln_list = [Line(line, i) for i, line in enumerate(line_list)]
+    x_list, y_list = zip(*pt_list)
+    min_ptx, max_ptx = min(x_list), max(x_list)
+    # get max range for scan
+
+    ln_list = [Line(line) for i, line in enumerate(line_list)]
     if debug:
         for line in line_list:
-            if len(line) > 1:
-                draw_line(line)
-    x_list.sort()
+            draw_line(line)
+    ln_list.sort()
 
     # begin scan
     # from left to right
-    gene_list = []
+    gene_list = []      # list [x, y]
     cnt_list = []
     # not all points will affect the center point
     # avoid error on curve
     AFFECT_DIST = 30
     # need MIN_SEG segments to get the mean value, in order to avoid sample insufficiency
     MIN_SEG = 5
-    # BRUTE FORCE..
-    for x in x_list:
-        y_list = []
-        for ln in ln_list:
-            if ln.first_x <= x <= ln.last_x:
-                for i in range(len(ln.line) - 1):
-                    if ln.line[i][0] <= x <= ln.line[i + 1][0]:
-                        if x <= ln.line[i][0] + AFFECT_DIST or x >= ln.line[i + 1][0] - AFFECT_DIST:
-                            y = calc_y(ln.line[i], ln.line[i + 1], x)
-                            y_list.append(y)
-                            break
-                    if ln.line[i + 1][0] <= x <= ln.line[i][0]:
-                        if x <= ln.line[i + 1][0] + AFFECT_DIST or x >= ln.line[i][0] - AFFECT_DIST:
-                            y = calc_y(ln.line[i], ln.line[i + 1], x)
-                            y_list.append(y)
-                            break
-        if len(y_list) >= MIN_SEG:
-            # print len(y_list)
-            mean_y = np.mean(y_list)
-            gene_list.append([x, mean_y])
-            cnt_list.append(len(y_list))
+    cur_idx = 0
+    n_road = len(ln_list)
+    pos = [0] * n_road
+    scan_list = [cur_idx]
+    cur_idx = 1
+    rm_cnt = 0
+    # scanline
+    while len(scan_list) != 0:
+        # find minx to update y
+        minx, sel_idx = 1e10, -1
+        for idx in scan_list:
+            p = pos[idx]            # idx
+            r = ln_list[idx].line   # road
+            x = r[p][0]             # x
+            if x < minx:
+                minx, sel_idx = x, idx
+        # check if new segment should be added
+        if cur_idx < n_road:
+            new_x = ln_list[cur_idx].first_x
+            if new_x < minx:
+                scan_list.append(cur_idx)
+                sel_idx = cur_idx
+                cur_idx += 1
+                minx = new_x
+        if minx > max_ptx:
+            break
+        s, c, cnt = 0.0, 0, 0
+        for idx in scan_list:
+            p = pos[idx]
+            r = ln_list[idx].line
+            y = r[p][1]
+            per = min(minx - ln_list[idx].first_x, ln_list[idx].last_x - minx) / \
+                     (ln_list[idx].last_x - ln_list[idx].first_x)
+            w = math.pow(10, per + 0.1) - 1
+            if sel_idx == idx:
+                ny = y
+                s, c, cnt = s + ny * w, c + w, cnt + 1
+            elif r[p][0] - minx < AFFECT_DIST or minx - r[p - 1][0] < AFFECT_DIST:
+                ny = calc_y(r[p - 1], r[p], minx)
+                s, c, cnt = s + ny * w, c + w, cnt + 1
+        if cnt >= MIN_SEG:
+            gene_list.append([minx, s / c])
+        pos[sel_idx] += 1
+        # check if any segment will be removed
+        l = len(ln_list[sel_idx].line)
+        if pos[sel_idx] == l:
+            scan_list.remove(sel_idx)
+            rm_cnt += 1
+
+    # print n_road, rm_cnt
     if len(gene_list) > 0:
         ref_list = mean_y_filter(gene_list)
     else:
         ref_list = None
-    #  gene_list = refine_road(gene_list, cnt_list)
-    #  gene_list = mean_y_filter(gene_list)
-    return gene_list
+    return ref_list
 
 
 def work(tup_list, rd_list):
     for item in tup_list:
         pt_list, line_list, a, lb = item[:]
-        road = center_road(pt_list, line_list)
-        # print "label", lb
+        print "label", lb
         try:
+            road = center_road(pt_list, line_list)
             road = rotate(road, -a)
             rd_list.append(road)
         except ValueError:
-            print "value error", lb
+            print lb, "ValueError"
+        except TypeError:
+            print lb, "TypeError"
 
 
 @debug_time
@@ -202,7 +232,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
 
     mng = mp.Manager()
     ret_list = mng.list()
-    proc_num = 1
+    proc_num = 4
     pool = mp.Pool(processes=proc_num)
     for i in range(proc_num):
         pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))

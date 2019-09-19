@@ -6,7 +6,7 @@
 
 
 from src.dab_scan import DAB_SCAN
-from spd_src.mul_gene_map import gene_center_line
+from spd_src.gene_map import gene_center_line
 from src.fetch_data import load_txt
 import matplotlib.pyplot as plt
 
