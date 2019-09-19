@@ -39,14 +39,14 @@ def collect_line_around(pt_list, trace_list, rev, rot):
     because the vehicle may turn around and trace back, the trace should be split when turning happened
     :param pt_list: list of anchor point
     :param trace_list: original trace list, list of TaxiData
-    :param rev: each index
+    :param rev: (i, j) each index for point in line i and seq j
     :param rot: rotate angle
     :return: list of line(list of Point)
     """
     # begin, end = {}, {}
     trace_detail = {}
     for i, pt in enumerate(pt_list):
-        ti, tj = rev[i][:]
+        ti, tj = rev[i][:]          # line & seq
         try:
             trace_detail[ti].append(tj)
         except KeyError:
@@ -60,7 +60,7 @@ def collect_line_around(pt_list, trace_list, rev, rot):
         iset = set(idx_list)
         for j in idx_list:
             if j + 1 < len(trace_list[i]):
-                iset.add(j + 1)
+                iset.add(j)
         fill_list = list(iset)
         fill_list.sort()
 
@@ -85,7 +85,7 @@ def collect_line_around(pt_list, trace_list, rev, rot):
 def save_road(road_list):
     fp = open('./data/road.txt', 'w')
     for road in road_list:
-        sp_list = ["{0},{1}".format(pt[0], pt[1]) for pt in road]
+        sp_list = ["{0:.2f},{1:.2f}".format(pt[0], pt[1]) for pt in road]
         str_road = ';'.join(sp_list)
         fp.write(str_road + '\n')
     fp.close()
@@ -153,7 +153,7 @@ def center_road(pt_list, line_list, debug=False):
             y = r[p][1]
             per = min(minx - ln_list[idx].first_x, ln_list[idx].last_x - minx) / \
                      (ln_list[idx].last_x - ln_list[idx].first_x)
-            w = math.pow(10, per + 0.1) - 1
+            w = math.pow(1.1, per) - 0.9
             if sel_idx == idx:
                 ny = y
                 s, c, cnt = s + ny * w, c + w, cnt + 1
@@ -174,6 +174,7 @@ def center_road(pt_list, line_list, debug=False):
         ref_list = mean_y_filter(gene_list)
     else:
         ref_list = None
+    ref_list.sort()
     return ref_list
 
 
@@ -218,13 +219,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
                 continue
             angle_list = angle_dict[label]
             a = mean_angle(angle_list)
-            try:
-                # print a
-                idx = int(a / 45)
-            except ValueError:
-                continue
-            # print a
-            if len(pt_list) > 50:
+            if len(pt_list) > 100:
                 a = 90 - a
                 line_list = collect_line_around(pt_list, trace_list, rev, a)
                 pt_list = rotate(pt_list, a)
@@ -232,7 +227,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, debug=False):
 
     mng = mp.Manager()
     ret_list = mng.list()
-    proc_num = 4
+    proc_num = 24
     pool = mp.Pool(processes=proc_num)
     for i in range(proc_num):
         pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))

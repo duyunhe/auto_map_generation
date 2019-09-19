@@ -64,7 +64,7 @@ def collect_line_around(pt_list, trace_list, rev, rot):
         iset = set(idx_list)
         for j in idx_list:
             if j + 1 < len(trace_list[i]):
-                iset.add(j + 1)
+                iset.add(j)
         fill_list = list(iset)
         fill_list.sort()
 
@@ -128,7 +128,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, ma_list, debug=Fa
                 idx = int(a / 45)
             except ValueError:
                 continue
-            if len(pt_list) > 50:
+            if len(pt_list) > 100:
                 a = 90 - a
                 line_list = collect_line_around(pt_list, trace_list, rev, a)
                 pt_list = rotate(pt_list, a)
@@ -136,7 +136,7 @@ def gene_center_line(labels, data_list, rev_index, trace_list, ma_list, debug=Fa
 
     mng = mp.Manager()
     ret_list = mng.list()
-    proc_num = 8
+    proc_num = 32
     pool = mp.Pool(processes=proc_num)
     for i in range(proc_num):
         pool.apply_async(work, args=(tup_list[i::proc_num], ret_list))

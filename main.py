@@ -4,8 +4,8 @@
 # @简介    : 
 # @File    : main.py
 
-from src.dab_scan import DAB_SCAN
-from spd_src.gene_map import gene_center_line
+from two_way.dab_scan import DAB_SCAN
+from two_way.gene_map import gene_center_line
 from src.fetch_data import load_txt
 import matplotlib.pyplot as plt
 
