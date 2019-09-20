@@ -386,9 +386,9 @@ def in_hz(lat, lng):
 def dog_last(path, off_dist):
     """
     简化道路，道格拉斯算法
-    :param path: [[x,y]...[x,y]]
-    :param off_dist: float
-    :return: 
+    :param path: list [[x,y]...[x,y]]
+    :param off_dist: float 点和道路偏离的距离
+    :return: path
     """
     if len(path) == 2:
         return path
@@ -399,6 +399,7 @@ def dog_last(path, off_dist):
         dist = point2segment(pt, pt0, pt1)
         if dist > max_dist:
             max_dist, sel = dist, i
+
     new_path = []
     if max_dist > off_dist:
         path0, path1 = dog_last(path[:sel + 1], off_dist), dog_last(path[sel:], off_dist)

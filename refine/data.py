@@ -42,10 +42,8 @@ def load_road(ort=0):
     for i, road in enumerate(road_list):
         ma, l = info(i, road)
         if l > 50:
-            if ort == 0:
-                if ma < 180:
-                    ret_list.append(road)
+            if ma < 180:
+                ret_list.append(road)
             else:
-                if ma > 180:
-                    ret_list.append(road)
+                ret_list.append(road[::-1])
     return ret_list

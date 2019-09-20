@@ -15,6 +15,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+def save_road(road, filename):
+    fp = open(filename, 'w')
+    sp_list = ["{0:.2f},{1:.2f}".format(pt[0], pt[1]) for pt in road]
+    str_road = ';'.join(sp_list)
+    fp.write(str_road + '\n')
+    fp.close()
+
+
 def norm_road(road_list):
     """
     使道路正向(0-90, 270-360)
@@ -177,12 +185,16 @@ def merge(road_list):
     # for road in road_list:
     #     draw_center(road)
     draw_center(final_road, 'k')
+    return final_road
+
+
+def main():
+    total_list = load_road(0)
+    road = merge(total_list)
+    save_road(road, '..\data\yh.txt')
+    draw_png()
+    plt.show()
 
 
 if __name__ == '__main__':
-    total_list = load_road(0)
-    merge(total_list)
-    # total_list = load_road(1)
-    # merge(total_list)
-    draw_png()
-    plt.show()
+    main()
