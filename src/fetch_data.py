@@ -67,7 +67,7 @@ def load_txt():
       Here, Trace is list of TaxiData
     """
     xy_dict = defaultdict(list)
-    fp = open("./data/yhtl.txt")
+    fp = open("../data/yhtl.txt")
     idx = 0
     for line in fp.readlines():
         items = line.strip('\n').split(',')

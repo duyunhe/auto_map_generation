@@ -10,6 +10,7 @@ from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 from smooth_tst import smooth
 from src.geo import dog_last
+from src.draw import draw_png
 
 
 def read_txt():
@@ -28,9 +29,9 @@ def read_txt():
     return pt_list
 
 
-def draw_road(road, color='k'):
+def draw_road(road, color='k', alpha=.5):
     x_list, y_list = zip(*road)
-    plt.plot(x_list, y_list, color)
+    plt.plot(x_list, y_list, color=color, alpha=alpha)
 
 
 def filt(road):
@@ -62,6 +63,7 @@ def main():
     road = inter(road)
     draw_road(road)
     filt(road)
+    draw_png()
     plt.show()
 
 
