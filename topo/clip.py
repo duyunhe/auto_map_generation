@@ -8,32 +8,40 @@ from readMap import read_sqlite, make_kdtree
 import matplotlib.pyplot as plt
 from geo import hausdorff_dist, point2segment_xy, calc_dist
 from src.common import debug_time
+from src.coord import bl2xy
 import numpy as np
 from map_struct import MapPoint, MapSegment
-from map.save_map import save, delete_all
+from map.save_map import save_sqlite, delete_all
 
 
 def in_area(line):
     minx, miny, maxx, maxy = 1e10, 1e10, 0, 0
+    l0, b0 = 120.19838, 30.257853
+    l1, b1 = 120.269535, 30.200069
+    x0, y0 = bl2xy(b0, l0)
+    x1, y1 = bl2xy(b1, l1)
     for mp in line.point_list:
         x, y = mp.x, mp.y
         minx, miny, maxx, maxy = min(minx, x), min(miny, y), max(maxx, x), max(maxy, y)
-    if minx > 72000 and maxx < 77000 and miny > 83000 and maxy < 88000:
+    if minx > x0 and maxx < x1 and miny > y1 and maxy < y0:
         return True
     else:
         return False
 
 
 def get_route_data():
-    ln_list, pt_list = read_sqlite('../data/hz3.db')
+    """
+    :return: list of all Road, list[Road], list[MapPoint], KDTree 
+    """
+    ln_list, pt_list = read_sqlite('../data/hz1.db')
     map_list = []
-    all_list = []
+    all_road_list = []
     for line in ln_list:
-        all_list.append(line)
+        all_road_list.append(line)
         if in_area(line):
             map_list.append(line)
     kdt, _ = make_kdtree(pt_list)
-    return all_list, map_list, pt_list, kdt
+    return all_road_list, map_list, pt_list, kdt
 
 
 def get_data():
@@ -123,7 +131,7 @@ def get_all_data():
 def main():
     road_list, _, _, _, yh = get_all_data()
     delete_all()
-    save(road_list)
+    save_sqlite(road_list)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 # coding=utf-8
 import math
 import numpy as np
-from map_struct import Point
+from topo.map_struct import Point
 
 
 x_pi = 3.14159265358979324 * 3000.0 / 180.0
@@ -512,6 +512,23 @@ def inter_seg(p0, p1, p2, p3):
                and cross(p2, p3, p0) * cross(p2, p3, p1) < 0):
                     return True
     return False
+
+
+def xy_radian(x0, y0, x1, y1):
+    """
+    :param x0: Float
+    :param y0: 
+    :param x1: 
+    :param y1: 
+    :return: atan2 -pi -> pi
+    """
+    return math.atan2(y1 - y0, x1 - x0)
+
+
+def data_angle(last_data, cur_data):
+    x0, y0 = last_data.x, last_data.y
+    x1, y1 = cur_data.x, cur_data.y
+    return xy_radian(x0, y0, x1, y1)
 
 
 def main_test():

@@ -9,10 +9,11 @@ from src.fetch_data import load_txt
 from src.draw import draw_png
 from src.common import debug_time
 from clip import get_all_data, draw_seg
-from map.save_map import delete_all, save
+from map.save_map import delete_all, save_sqlite
+from map_struct import MapPoint
 import matplotlib.pyplot as plt
 import math
-from geo import point2segment, calc_included_angle
+from geo import point2segment, calc_included_angle, inter_seg, get_cross_point_v0
 from collections import defaultdict
 
 
@@ -120,6 +121,27 @@ def match_road(point_list, kdt, trace, newline):
     return path
 
 
+def proc_intersect(road, new_road):
+    sel_i, sel_j, sel_px, sel_py = None, None, None, None
+    for i in range(len(road.point_list)):
+        if i == 0:
+            continue
+        p0, p1 = road.point_list[i - 1], road.point_list[i]
+        for j in range(len(new_road.point_list)):
+            if j == 0:
+                continue
+            p2, p3 = new_road.point_list[j - 1], new_road.point_list[j]
+            if inter_seg(p0, p1, p2, p3):
+                _, px, py = get_cross_point_v0(p0, p1, p2, p3)
+                print p0, p1, p2, p3, px, py
+                sel_i, sel_j, sel_px, sel_py = i, j, px, py
+
+    if sel_i is not None:
+        mp = MapPoint(sel_px, sel_py)
+        road.point_list.insert(sel_i, mp)
+        new_road.point_list.insert(sel_j, mp)
+
+
 @debug_time
 def main():
     _, _, trace_list = load_txt()
@@ -133,7 +155,7 @@ def main():
 
     turn_round = defaultdict(int)
     trace_cnt = defaultdict(int)
-    for trace in trace_list[:1000]:
+    for trace in trace_list[:400]:
         # draw_trace(trace_list[i])
         path = match_road(pt_list, kdt, trace, yhtl)
         for i, idx in enumerate(path):
@@ -146,7 +168,7 @@ def main():
                 trace_cnt[idx] += 1
     print trace_cnt
     print turn_round
-
+    mod_list = []
     for road in road_list:
         if road.lid in turn_round.keys():
             p = 1.0 * turn_round[road.lid] / trace_cnt[road.lid]
@@ -154,15 +176,22 @@ def main():
                 w = math.pow(math.e, p)
                 print road.lid, p
                 lw = math.log(turn_round[road.lid]) + 1
+                mod_list.append(road)
                 draw_seg(road, 'r', lw)
             else:
                 draw_seg(road, 'k')
         else:
             draw_seg(road, 'k')
 
+    for road in mod_list:
+        print "lid", road.lid
+        print len(road.point_list), len(yhtl.point_list)
+        proc_intersect(road, yhtl)
+        print len(road.point_list), len(yhtl.point_list)
+
     all_road_list.append(yhtl)
     delete_all()
-    save(all_road_list)
+    save_sqlite(all_road_list)
 
     draw_png()
     plt.show()

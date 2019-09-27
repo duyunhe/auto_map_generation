@@ -11,14 +11,14 @@ import sqlite3
 def delete_all():
     cx = sqlite3.connect("../data/hz1.db")
     cu = cx.cursor()
-    cx.execute("delete from tb_seg_point1")
-    cx.execute("delete from tb_segment1")
+    cx.execute("delete from tb_seg_point")
+    cx.execute("delete from tb_segment")
     cx.commit()
     cu.close()
     cx.close()
 
 
-def save(line_list):
+def save_sqlite(line_list):
     """
     :param line_list: Road 中name rank 都为unicode 
     :return: 
@@ -30,10 +30,10 @@ def save(line_list):
         uname = road.name
         tup_list.append([i, uname, road.ort, road.rank])
 
-    sql = "insert into tb_segment1(s_id, S_NAME, direction, rank) values (?,?,?,?)"
+    sql = "insert into tb_segment(s_id, S_NAME, direction, rank) values (?,?,?,?)"
     cx.executemany(sql, tup_list)
 
-    sql = "insert into tb_seg_point1 values(?,?,?,?,?)"
+    sql = "insert into tb_seg_point values(?,?,?,?,?)"
     tup_list = []
     pid = 0
     for i, road in enumerate(line_list):
@@ -50,7 +50,7 @@ def save(line_list):
 
 def main():
     delete_all()
-    save()
+    save_sqlite()
 
 
 if __name__ == '__main__':

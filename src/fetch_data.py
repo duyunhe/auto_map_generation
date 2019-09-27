@@ -22,7 +22,7 @@ def split_trace(xy_dict):
                     continue
                 itv = data - last_data
                 # too faraway to split
-                if itv >= 120:
+                if itv >= 360:
                     if len(trace) > 1:
                         trace_list.append(trace)
                     trace = [data]
@@ -59,7 +59,7 @@ def calc_trace_info(trace_list, merge_list):
 
 
 @debug_time
-def load_txt():
+def load_txt(filename):
     """
     :return: all_list list[x, y, angle]
       reverse index
@@ -67,7 +67,7 @@ def load_txt():
       Here, Trace is list of TaxiData
     """
     xy_dict = defaultdict(list)
-    fp = open("../data/yhtl.txt")
+    fp = open(filename)
     idx = 0
     for line in fp.readlines():
         items = line.strip('\n').split(',')
