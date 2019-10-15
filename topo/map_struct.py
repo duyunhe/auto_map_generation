@@ -67,7 +67,7 @@ class MapSegment:
     def __init__(self, lid):
         self.point_list = []
         self.name, self.rank, self.ort = None, None, None
-        self.lid = lid
+        self.lid, self.surface = lid, 0
 
     def add_point(self, map_point):
         self.point_list.append(map_point)

@@ -46,11 +46,12 @@ def insert_map_point(pt, mp_list):
     return pt.pid
 
 
-def read_sqlite(filename):
+def read_sqlite(filename, build_map=False):
     """
     read map, return line list (MapSegment) and point list (MapPoint)
     :param: filename db path & name
-    :return: 
+    :param: build_map   for map building, so all seen as double way
+    :return: line_list, point_list
     """
     conn = sqlite3.connect(filename)
     cur = conn.cursor()
@@ -84,7 +85,7 @@ def read_sqlite(filename):
         pt_len = len(line.point_list)
 
         for i, pt in enumerate(line.point_list):
-            if line.ort == ORT_ONEWAY:
+            if not build_map and line.ort == ORT_ONEWAY:
                 ld = LinkDesc(line, i, True)
                 rld = LinkDesc(line, i, False)
                 if i < pt_len - 1:
@@ -113,7 +114,7 @@ def make_kdtree(point_list):
 
 
 class MapInfo(object):
-    def __init__(self, db_name="../data/hz3.db"):
+    def __init__(self, db_name="../data/hz1.db"):
         self.line_list, self.point_list = read_sqlite(db_name)
         self.kdt, self.x = make_kdtree(self.point_list)
 

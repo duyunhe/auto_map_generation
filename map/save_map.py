@@ -8,8 +8,8 @@
 import sqlite3
 
 
-def delete_all():
-    cx = sqlite3.connect("../data/hz1.db")
+def delete_all(filename="../data/hz3.db"):
+    cx = sqlite3.connect(filename)
     cu = cx.cursor()
     cx.execute("delete from tb_seg_point")
     cx.execute("delete from tb_segment")
@@ -18,12 +18,13 @@ def delete_all():
     cx.close()
 
 
-def save_sqlite(line_list):
+def save_sqlite(line_list, filename="../data/hz3.db"):
     """
-    :param line_list: Road 中name rank 都为unicode 
+    :param line_list: Road 中name rank 都为unicode
+    :param filename: 
     :return: 
     """
-    cx = sqlite3.connect("../data/hz1.db")
+    cx = sqlite3.connect(filename)
     cu = cx.cursor()
     tup_list = []
     for i, road in enumerate(line_list):

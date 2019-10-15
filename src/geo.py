@@ -161,7 +161,7 @@ def point_project(point, p0, p1):
 
 def point2segment(point, segment_point0, segment_point1):
     """
-    :param point: Point
+    :param point: [x, y]
     :param segment_point0: 
     :param segment_point1: 
     :return: dist from point to segment
@@ -223,25 +223,27 @@ def get_line_equation(segment_point0, segment_point1):
     :param segment_point1: 
     :return: A, B, C
     """
-    x0, y0 = segment_point0.px, segment_point0.py
-    x1, y1 = segment_point1.px, segment_point1.py
+    x0, y0 = segment_point0.x, segment_point0.y
+    x1, y1 = segment_point1.x, segment_point1.y
     a, b, c = y1 - y0, x0 - x1, x1 * y0 - y1 * x0
     d = math.sqrt(a * a + b * b)
     a, b, c = a / d, b / d, c / d
     return a, b, c
 
 
-def get_cross_point(segment0, segment1):
+def get_cross_point(s0p0, s0p1, s1p0, s1p1):
     """
     获得两线段交点（在延长线上的交点）
-    :param segment0: Segment
-    :param segment1: 
+    :param s0p0: Point
+    :param s0p1: Point
+    :param s1p0: Point
+    :param s1p1: Point
     :return: d 左手边>0 右手边<0 平行=0    px, py
     """
-    sp0, sp1 = segment0.begin_point, segment0.end_point
-    a0, b0, c0 = get_line_equation(sp0, sp1)
-    sp0, sp1 = segment1.begin_point, segment1.end_point
-    a1, b1, c1 = get_line_equation(sp0, sp1)
+    # s0p0, s0p1 = segment0.begin_point, segment0.end_point
+    a0, b0, c0 = get_line_equation(s0p0, s0p1)
+    # s1p0, s1p1 = segment1.begin_point, segment1.end_point
+    a1, b1, c1 = get_line_equation(s1p0, s1p1)
 
     d = a0 * b1 - a1 * b0
     if math.fabs(d) < 1e-10:          # 平行
@@ -250,6 +252,12 @@ def get_cross_point(segment0, segment1):
         px = (b0 * c1 - b1 * c0) / d
         py = (c0 * a1 - c1 * a0) / d
         return d, px, py
+
+
+def get_vector_angle(p0, p1):
+    x0, y0, x1, y1 = p0.x, p0.y, p1.x, p1.y
+    dx, dy = x1 - x0, y1 - y0
+    return math.atan2(dy, dx)
 
 
 def vec_cross(vec0, vec1):

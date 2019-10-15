@@ -8,7 +8,6 @@
 import matplotlib.pyplot as plt
 from clip import get_route_data, draw_seg
 from src.coord import bl2xy
-from trace_file import extract_tunnel
 from src.fetch_data import load_txt
 import numpy as np
 
@@ -31,6 +30,15 @@ def draw_trace_point(trace):
     plt.plot(x_list, y_list, linestyle='', marker='+', alpha=.5, color='k')
 
 
+def draw_line_idx(segment, idx):
+    pt0 = segment.point_list[0]
+    pt1 = segment.point_list[-1]
+    plt.text((pt0.x + pt1.x) / 2, (pt0.y + pt1.y) / 2, str(idx))
+    for i, pt in enumerate(segment.point_list):
+        str_pt = "{0},{1}".format(i, pt.pid)
+        plt.text(pt.x, pt.y, str_pt)
+
+
 def draw_png():
     image = plt.imread('../img/hz1.png')
     pt0 = 120.2069091796875, 30.263811840754933
@@ -43,14 +51,15 @@ def draw_png():
 
 def main():
     all_road, map_road, _, _ = get_route_data()
-    _, _, trace_list = load_txt("../data/thirdBridge.txt")
+    # _, _, trace_list = load_txt("../data/thirdBridge.txt")
     # print len(trace_list)
-    tunnel_list = extract_tunnel(trace_list)
-    np.savetxt('../data/tunnel.txt', tunnel_list, fmt='%.2f', delimiter=',')
+    # tunnel_list = extract_tunnel(trace_list)
+    # np.savetxt('../data/tunnel.txt', tunnel_list, fmt='%.2f', delimiter=',')
 
     for road in map_road:
         draw_seg(road)
-    draw_png()
+        # draw_line_idx(road, road.lid)
+    # draw_png()
     plt.show()
 
 
