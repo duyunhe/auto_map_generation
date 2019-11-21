@@ -9,7 +9,10 @@ from topo.readMap import read_sqlite, make_kdtree
 import matplotlib.pyplot as plt
 from topo.draw import draw_line_idx
 from src.draw import draw_png
-from src.geo import get_cross_point, get_vector_angle, calc_point_dist, dog_last, point2segment
+from save_map import save_map
+from save_orcl import save_oracle
+from src.geo import get_cross_point, get_vector_angle, calc_point_dist, dog_last, \
+    point2segment, point_on_segment, cross_point, pt2segment, pt_project
 from geo import get_parallel
 import math
 from topo.map_struct import MapSegment
@@ -284,6 +287,10 @@ def gene_center_express(exp_list, ln_list):
 
 
 def analysis_express(road_list):
+    """
+    :param road_list: 所有road 
+    :return: 
+    """
     info_list = gene_topo(road_list)
     mod_list = []
     gene_list = []
@@ -293,11 +300,13 @@ def analysis_express(road_list):
         line0.point_list = new_mp0
         line1 = MapSegment(0)
         line1.point_list = new_mp1
-        center_seg = MapSegment(0)
+        center_seg = ModLine()
         center_seg.point_list = center_list
         center_seg.name = name
         mod_list.append(center_seg)
-        gene_list.extend(gene_express(center_seg))
+        # info[[idx....], [idx.....]]
+        # 两个列表，表示哪些线段是左右两侧的地面道路
+        gene_list.extend(gene_express_line(center_seg, info, road_list))
     return mod_list, gene_list
 
 
@@ -317,23 +326,34 @@ def main():
     for road in gene_list:
         if road.surface:
             draw_seg(road, 'lime')
-            # if road.lid == 163:
-            #     draw_line_idx(road, road.lid)
         else:
             draw_seg(road, 'orange')
+    road_map = {}
+    map_on_list = []
     for road in gene_express_lines:
         draw_seg(road, 'g')
+        lid, fwd, rid = road.org_lid, 1 - road.left, road.lid
+        road_map[rid] = (lid, fwd)
+        map_on_list.append(road)
     for road in gene_lines:
-        org_line = line_list[road.org_lid]
-        # if org_line.surface:
         draw_seg(road, 'r')
+        lid, fwd, rid = road.org_lid, 1 - road.left, road.lid
+        map_on_list.append(road)
+        if line_list[lid].ort == ort_oneway and fwd == 0:
+            continue
+        road_map[rid] = (lid, fwd)
+
+        # if org_line.lid == 3819:
+        #     draw_seg(road, 'r')
+        #     draw_line_idx(road, road.org_lid)
     #     if road.lid == 35:
     #         draw_line_idx(road, road.lid)
-
+    # save_map(road_map)
+    save_oracle(map_on_list)
     # draw_png()
-    # plt.xlim(82500, 86000)
-    # plt.ylim(82419, 86976)
-    plt.show()
+    # plt.xlim(75652, 77306)
+    # plt.ylim(92174, 92713)
+    # plt.show()
 
 
 def gene_endpoint(pt, line_list, info):
@@ -526,25 +546,75 @@ def gene_cross_point(pt, line_list, info_list, idx):
     return temp
 
 
+def modify_line(line, ln_list):
+    """
+    变窄的地方画的漂亮一点
+    :param line: 
+    :param ln_list:
+    :return: 
+    """
+    last_dist = 0
+    for i, dist in enumerate(line.dist_list):
+        if last_dist and (dist == 60 and last_dist == 20 or dist == 20 and last_dist == 60):
+            # print "mod", line.org_lid
+            org_line = ln_list[line.org_lid]
+            if last_dist == 20 and dist == 60:
+                if line.left == 0:      # right
+                    # print "add right"
+                    pt = point_on_segment(org_line.point_list[i], org_line.point_list[i - 1], 20)
+                    _, _, p0, p1 = get_parallel(org_line.point_list[i], pt, 20)
+                    # add point p1
+                    mp = ModPoint(pt=p1)
+                    line.point_list.insert(i, mp)
+                else:
+                    # print "add left", i
+                    seq = len(org_line.point_list) - 1 - i
+                    pt = point_on_segment(org_line.point_list[seq], org_line.point_list[seq + 1], 20)
+                    _, _, p0, p1 = get_parallel(org_line.point_list[seq], pt, 20)
+                    mp = ModPoint(pt=p1)
+                    line.point_list.insert(i, mp)
+            else:
+                if line.left == 0:
+                    # print "add right", i
+                    pt = point_on_segment(org_line.point_list[i - 1], org_line.point_list[i], 20)
+                    p0, p1, _, _ = get_parallel(org_line.point_list[i - 1], pt, 20)
+                    mp = ModPoint(pt=p1)
+                    line.point_list.insert(i, mp)
+                else:
+                    # print "add left", i
+                    seq = len(org_line.point_list) - 1 - i
+                    pt = point_on_segment(org_line.point_list[seq + 1], org_line.point_list[seq], 20)
+                    p0, p1, _, _ = get_parallel(org_line.point_list[seq + 1], pt, 20)
+                    mp = ModPoint(pt=p1)
+                    line.point_list.insert(i, mp)
+        last_dist = dist
+
+
 def build_map(gene_list, mod_points):
     """
     :param gene_list: list [Line] 
     :param mod_points: 
-    :return: 
+    :return: list of ModLine 
     """
     line_index = {}     # lid -> gene_lid0, gene_lid1
+    lid_index = {}      # lid -> index in gene_lines
     gene_lines = []
     # take position
     for line in gene_list:
         ml = ModLine()
-        ml.left, ml.org_lid, ml.lid = 0, line.lid, len(gene_lines)
+        # 右手侧，与原道路数据同向
+        ml.left, ml.org_lid, ml.lid = 0, line.lid, line.lid * 2
         ml.point_list = [None] * len(line.point_list)
+        ml.dist_list = [0] * len(line.point_list)
+        lid_index[ml.lid] = len(gene_lines)
         gene_lines.append(ml)
         lid0 = ml.lid
 
         ml = ModLine()
-        ml.left, ml.org_lid, ml.lid = 1, line.lid, len(gene_lines)
+        ml.left, ml.org_lid, ml.lid = 1, line.lid, line.lid * 2 + 1
         ml.point_list = [None] * len(line.point_list)
+        ml.dist_list = [0] * len(line.point_list)
+        lid_index[ml.lid] = len(gene_lines)
         gene_lines.append(ml)
         lid1 = ml.lid
 
@@ -554,61 +624,73 @@ def build_map(gene_list, mod_points):
         if len(mp.pli_list) == 2:
             lid0, seq0, left0, fwd0 = mp.pli_list[0].lid, mp.pli_list[0].seq, mp.pli_list[0].left, mp.pli_list[0].fwd
             lid1, seq1, left1, fwd1 = mp.pli_list[1].lid, mp.pli_list[1].seq, mp.pli_list[1].left, mp.pli_list[1].fwd
+            dist0, dist1 = mp.pli_list[0].dist, mp.pli_list[1].dist
             if lid0 == lid1:        # 同一道路
                 max_seq = max(seq0, seq1)
                 if left0 == 0:
                     lid = line_index[lid0][0]
-                    ml = gene_lines[lid]
+                    ml = gene_lines[lid_index[lid]]
                     ml.point_list[max_seq] = mp
+                    ml.dist_list[max_seq] = dist0
                 else:
                     lid = line_index[lid0][1]
-                    ml = gene_lines[lid]
+                    ml = gene_lines[lid_index[lid]]
                     ml.point_list[-max_seq - 1] = mp
+                    ml.dist_list[-max_seq - 1] = dist0
             else:           # 不同道路
                 if left0 == 0:
                     seq = seq0
                     if not fwd0:
                         seq += 1
                     lid = line_index[lid0][0]
-                    ml = gene_lines[lid]
+                    ml = gene_lines[lid_index[lid]]
                     ml.point_list[seq] = mp
+                    ml.dist_list[seq] = dist0
                 else:
                     seq = seq0
                     if not fwd0:
                         seq += 1
                     lid = line_index[lid0][1]
-                    ml = gene_lines[lid]
+                    ml = gene_lines[lid_index[lid]]
                     ml.point_list[-seq - 1] = mp
+                    ml.dist_list[-seq - 1] = dist0
                 if left1 == 0:
                     seq = seq1
                     if not fwd1:
                         seq += 1
                     lid = line_index[lid1][0]
-                    ml = gene_lines[lid]
+                    ml = gene_lines[lid_index[lid]]
                     ml.point_list[seq] = mp
+                    ml.dist_list[seq] = dist1
                 else:
                     seq = seq1
                     if not fwd1:
                         seq += 1
                     lid = line_index[lid1][1]
-                    ml = gene_lines[lid]
+                    ml = gene_lines[lid_index[lid]]
                     ml.point_list[-seq - 1] = mp
+                    ml.dist_list[-seq - 1] = dist1
         else:
             lid0, seq0, left0, fwd0 = mp.pli_list[0].lid, mp.pli_list[0].seq, mp.pli_list[0].left, mp.pli_list[0].fwd
+            dist0 = mp.pli_list[0].dist
             if left0 == 0:
                 lid = line_index[lid0][0]
-                ml = gene_lines[lid]
+                ml = gene_lines[lid_index[lid]]
                 if fwd0:
                     ml.point_list[0] = mp
+                    ml.dist_list[0] = dist0
                 else:
                     ml.point_list[-1] = mp
+                    ml.dist_list[-1] = dist0
             else:
                 lid = line_index[lid0][1]
-                ml = gene_lines[lid]
+                ml = gene_lines[lid_index[lid]]
                 if fwd0:
                     ml.point_list[0] = mp
+                    ml.dist_list[0] = dist0
                 else:
                     ml.point_list[-1] = mp
+                    ml.dist_list[-1] = dist0
     return gene_lines
 
 
@@ -635,29 +717,78 @@ def gene_points(pt, gene_set, line_list, idx=None):
         return gene_cross_point(pt, line_list, info_list, idx)
 
 
-def gene_express(mod_line):
-    gene_line0 = MapSegment(0)
-    n = len(mod_line.point_list)
-    for i, pt in enumerate(mod_line.point_list):
+def check_info_orient(center_line, info, line_list):
+    idx_list = info[0]
+    left_cnt, right_cnt = 0, 0
+    for idx in idx_list:
+        line = line_list[idx]
+        for pt in line.point_list:
+            min_dist, pa, pb = 1e10, None, None
+            for i, p0 in enumerate(center_line.point_list[:-1]):
+                p1 = center_line.point_list[i + 1]
+                dist = pt2segment(pt, p0, p1)
+                if dist < min_dist:
+                    min_dist, pa, pb = dist, p0, p1
+            cross = cross_point(pa, pb, pt)
+            if cross > 0:
+                right_cnt += 1
+            else:
+                left_cnt += 1
+    # print left_cnt, right_cnt
+    # 计算得先右后左
+
+
+def cutting(line, mod_line):
+    gene_line = ModLine()
+    gene_line.point_list = []
+    gene_line.org_lid = line.lid
+    gene_line.lid = line.lid * 2
+    gene_line.left = 0      # 单向路都为同向
+    for pt in line.point_list:
+        min_dist, pa, pb = 1e10, None, None
+        for i, p0 in enumerate(mod_line.point_list[:-1]):
+            p1 = mod_line.point_list[i + 1]
+            dist = pt2segment(pt, p0, p1)
+            if dist < min_dist:
+                min_dist, pa, pb = dist, p0, p1
+        x, y = pt_project(pt, pa, pb)
+        pj = ModPoint(x=x, y=y)
+        gene_line.point_list.append(pj)
+    return gene_line
+
+
+def gene_express_line(center_line, info, line_list):
+    """
+    :param center_line: 中间线 
+    :param info: 见调用函数处
+    :param line_list: 所有道路 
+    :return: 
+    """
+    gene_line0 = ModLine()
+    # 右手侧
+    gene_line0.point_list = []
+    n = len(center_line.point_list)
+    for i, pt in enumerate(center_line.point_list):
         if i == 0:
-            s0p0, s0p1 = mod_line.point_list[i], mod_line.point_list[i + 1]
+            s0p0, s0p1 = center_line.point_list[i], center_line.point_list[i + 1]
             dstp0, dstp1, _dstp0, _dstp1 = get_parallel(s0p0, s0p1, 20)
             mp = ModPoint(pt=dstp0)
             gene_line0.point_list.append(mp)
         elif i == n - 1:
-            s0p0, s0p1 = mod_line.point_list[i - 1], mod_line.point_list[i]
+            s0p0, s0p1 = center_line.point_list[i - 1], center_line.point_list[i]
             dstp0, dstp1, _dstp0, _dstp1 = get_parallel(s0p0, s0p1, 20)
             mp = ModPoint(pt=dstp1)
             gene_line0.point_list.append(mp)
         else:
-            s0p0, s0p1, s0p2 = mod_line.point_list[i - 1:i + 2]
+            s0p0, s0p1, s0p2 = center_line.point_list[i - 1:i + 2]
             dstp0, dstp1, _dstp0, _dstp1 = get_parallel(s0p0, s0p1, 20)
             dstp2, dstp3, _dstp2, _dstp3 = get_parallel(s0p1, s0p2, 20)
             mp = ModPoint(x=(dstp0.x + dstp2.x) / 2, y=(dstp0.y + dstp2.y) / 2)
             gene_line0.point_list.append(mp)
 
-    gene_line1 = MapSegment(0)
-    pt_list = mod_line.point_list[::-1]
+    gene_line1 = ModLine()
+    gene_line1.point_list = []
+    pt_list = center_line.point_list[::-1]
     for i, pt in enumerate(pt_list):
         if i == 0:
             s0p0, s0p1 = pt_list[i], pt_list[i + 1]
@@ -675,7 +806,16 @@ def gene_express(mod_line):
             dstp2, dstp3, _dstp2, _dstp3 = get_parallel(s0p1, s0p2, 20)
             mp = ModPoint(x=(dstp0.x + dstp2.x) / 2, y=(dstp0.y + dstp2.y) / 2)
             gene_line1.point_list.append(mp)
-    return [gene_line0, gene_line1]
+
+    check_info_orient(center_line, info, line_list)
+    gene_list = []
+    for idx in info[0]:
+        line = line_list[idx]
+        gene_list.append(cutting(line, gene_line0))
+    for idx in info[1]:
+        line = line_list[idx]
+        gene_list.append(cutting(line, gene_line1))
+    return gene_list
 
 
 def analysis_cross(line_list, gene_list):
@@ -692,6 +832,8 @@ def analysis_cross(line_list, gene_list):
                 vis.add(pt.pid)
 
     gene_lines = build_map(gene_list, mod_points)
+    for line in gene_lines:
+        modify_line(line, line_list)
     return gene_lines
 
 

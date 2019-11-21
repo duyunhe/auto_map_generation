@@ -43,3 +43,11 @@ def draw_png():
     x1, y1 = bl2xy(pt1[1], pt1[0])
     extent = (x0, x1, y1, y0)
     plt.imshow(image, alpha=.8, origin='upper', extent=extent)
+
+
+def draw_seg(segment, c='b', linewidth=1, alpha=1):
+    x_list, y_list = [], []
+    for pt in segment.point_list:
+        x_list.append(pt.x)
+        y_list.append(pt.y)
+    plt.plot(x_list, y_list, c=c, alpha=alpha, linewidth=linewidth)

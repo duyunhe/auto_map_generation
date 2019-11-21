@@ -35,3 +35,5 @@ class ModLine:
     def __init__(self):
         self.point_list = None
         self.org_lid, self.lid, self.left = None, None, None
+        self.dist_list = None
+        self.name = ""

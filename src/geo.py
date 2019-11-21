@@ -1,6 +1,6 @@
 # coding=utf-8
 import math
-
+from topo.map_struct import Point
 import numpy as np
 
 
@@ -130,6 +130,35 @@ def point_project_edge(point, edge):
     return point_project(point, sp0, sp1)
 
 
+def pt_project(point, p0, p1):
+    """
+    :param point: Point to be matched
+    :param p0: Segment point0
+    :param p1: Segment point1
+    :return: projected point, state
+            state 为2 在s0s1的延长线上  
+            state 为1 在s1s0的延长线上
+    """
+    x, y = point.x, point.y
+    x0, y0 = p0.x, p0.y
+    x1, y1 = p1.x, p1.y
+    ap, ab = np.array([x - x0, y - y0]), np.array([x1 - x0, y1 - y0])
+    if np.dot(ap, ab) < 0:
+        proj_pt = [x0, y0]
+        px, py, state = x0, y0, 1
+    else:
+        bp, ba = np.array([x - x1, y - y1]), np.array([x0 - x1, y0 - y1])
+        if np.dot(bp, ba) < 0:
+            proj_pt = [x1, y1]
+            px, py, state = x1, y1, 2
+        else:
+            ac = np.dot(ap, ab) / (np.dot(ab, ab)) * ab
+            proj_pt = [ac[0] + x0, ac[1] + y0]
+            px, py, state = ac[0] + x0, ac[1] + y0, 0
+
+    return px, py
+
+
 def point_project(point, p0, p1):
     """
     :param point: point to be matched
@@ -169,6 +198,28 @@ def point2segment(point, segment_point0, segment_point1):
     x, y = point[:]
     x0, y0 = segment_point0[:]
     x1, y1 = segment_point1[:]
+    cr = (x1 - x0) * (x - x0) + (y1 - y0) * (y - y0)
+    if cr <= 0:
+        return math.sqrt((x - x0) * (x - x0) + (y - y0) * (y - y0))
+    d2 = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)
+    if cr >= d2:
+        return math.sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1))
+    r = cr / d2
+    px = x0 + (x1 - x0) * r
+    py = y0 + (y1 - y0) * r
+    return math.sqrt((x - px) * (x - px) + (y - py) * (y - py))
+
+
+def pt2segment(point, segment_point0, segment_point1):
+    """
+    :param point: Point
+    :param segment_point0: 
+    :param segment_point1: 
+    :return: dist from point to segment
+    """
+    x, y = point.x, point.y
+    x0, y0 = segment_point0.x, segment_point0.y
+    x1, y1 = segment_point1.x, segment_point1.y
     cr = (x1 - x0) * (x - x0) + (y1 - y0) * (y - y0)
     if cr <= 0:
         return math.sqrt((x - x0) * (x - x0) + (y - y0) * (y - y0))
@@ -416,3 +467,32 @@ def dog_last(path, off_dist):
     else:
         new_path = [pt0, pt1]
     return new_path
+
+
+def point_on_segment(pt0, pt1, offset):
+    va, vb = np.array([pt0.x, pt0.y]), np.array([pt1.x, pt1.y])
+    ab = vb - va
+    length = np.linalg.norm(ab)
+    ac = ab / length * offset
+    vc = va + ac
+    pt = Point(vc[0], vc[1])
+    return pt
+
+
+def cross_point(pt0, pt1, pt):
+    """
+    叉积
+    :param pt0: segment point A
+    :param pt1: B
+    :param pt: C
+    :return: C在AB的左手边 -1 或右手边 1
+    """
+    va, vb = np.array([pt0.x, pt0.y]), np.array([pt1.x, pt1.y])
+    ab = vb - va
+    vc = np.array([pt.x, pt.y])
+    ac = vc - va
+    d = ab[0] * ac[1] - ac[0] * ab[1]
+    if d < 0:
+        return 1
+    else:
+        return -1

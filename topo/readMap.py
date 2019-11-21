@@ -10,6 +10,8 @@ from map_struct import MapPoint, MapSegment, LinkDesc
 from sklearn.neighbors import KDTree
 import numpy as np
 from time import clock
+import matplotlib.pyplot as plt
+from src.draw import draw_seg
 
 
 map_uid = {}        # assist for store string id, as map_uid["84354.12,92431.94"] = map_point
@@ -49,6 +51,7 @@ def insert_map_point(pt, mp_list):
 def read_sqlite(filename, build_map=False):
     """
     read map, return line list (MapSegment) and point list (MapPoint)
+    use XY coordinate
     :param: filename db path & name
     :param: build_map   for map building, so all seen as double way
     :return: line_list, point_list
@@ -119,6 +122,13 @@ class MapInfo(object):
         self.kdt, self.x = make_kdtree(self.point_list)
 
 
-if __name__ == '__main__':
+def main():
     ln_list, pt_list = read_sqlite("../data/hz3.db")
-    pass
+    for line in ln_list:
+        draw_seg(line, 'b', alpha=.3)
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
+

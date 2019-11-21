@@ -18,6 +18,23 @@ def delete_all(filename="../data/hz3.db"):
     cx.close()
 
 
+def save_map(tb_map, filename="../data/hz3.db"):
+    cx = sqlite3.connect(filename)
+    cu = cx.cursor()
+    sql = "delete from tb_map"
+    cu.execute(sql)
+    cx.commit()
+    tup_list = []
+    sql = "insert into tb_map (lid, fwd, rid) values(?,?,?)"
+    for rid, value in tb_map.items():
+        lid, fwd = value
+        tup_list.append((lid, fwd, rid))
+    cu.executemany(sql, tup_list)
+    cx.commit()
+    cu.close()
+    cx.close()
+
+
 def save_sqlite(line_list, filename="../data/hz3.db"):
     """
     :param line_list: Road 中name rank 都为unicode
